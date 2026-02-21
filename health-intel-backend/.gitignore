@@ -1,0 +1,9 @@
+# Backend specific ignores
+__pycache__/
+*.py[cod]
+.env
+health.db
+venv/
+.venv/
+*.log
+test_*.py.bak
