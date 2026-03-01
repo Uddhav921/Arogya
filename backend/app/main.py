@@ -60,6 +60,24 @@ scheduler.add_job(_scheduled_simulator_job, "interval", hours=1, id="health_simu
 @app.on_event("startup")
 def on_startup():
     init_db()
+
+    # Seed demo patient on fresh deployments (e.g. Railway with blank DB)
+    from app.db.seeder import seed_demo_data
+    seed_db = SessionLocal()
+    try:
+        seeded = seed_demo_data(seed_db)
+        if seeded:
+            print("[Startup] Demo patient seeded — fresh database detected.")
+    finally:
+        seed_db.close()
+
+    # ML model availability check
+    from app.ml.predictor import models_available, MODEL_DIR
+    if models_available():
+        print(f"[ML] ✅ Models loaded from {MODEL_DIR}")
+    else:
+        print(f"[ML] ❌ No models found at {MODEL_DIR} — risk prediction disabled!")
+
     # Run simulator once immediately on startup so data is available right away
     _scheduled_simulator_job()
     scheduler.start()

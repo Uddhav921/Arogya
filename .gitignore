@@ -70,3 +70,7 @@ backend/app/prompts/
 .env.production.local
 .zip
 .tar.gz
+
+# Always track pre-trained ML model files (needed for Railway deployment)
+!backend/data/models/*.pkl
+!backend/data/models/*.json
