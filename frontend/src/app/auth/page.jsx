@@ -78,7 +78,7 @@ export default function AuthPage() {
             {isSignUp ? "Create Account" : "Welcome Back"}
           </h1>
           <p className="text-[13px] text-[#6e6e73] mt-1">
-            {isSignUp ? "Set up your health profile" : "Sign in to VAKR"}
+            {isSignUp ? "Set up your health profile" : "Sign in to Arogya by VAKR"}
           </p>
         </div>
 

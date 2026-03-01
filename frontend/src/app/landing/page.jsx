@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { motion, useScroll, useTransform } from "framer-motion";
 import {
   Activity, Shield, Brain, Stethoscope, Wind, FileText, MessageSquare,
-  ChevronRight, ArrowRight, Heart, Zap, Database, BarChart3, Smartphone,
-  LineChart, Eye, Star, Lock, Users, CheckCircle2, Sparkles, Network,
+  ChevronRight, ArrowRight, Heart, Zap, Database, BarChart3, 
+  Lock, CheckCircle2, Sparkles, Network, ArrowUpRight, Github
 } from "lucide-react";
 
 /* ── Animated counter ── */
@@ -44,7 +45,7 @@ function FadeSection({ children, className = "", delay = 0 }) {
     return () => observer.disconnect();
   }, []);
   return (
-    <div ref={ref} className={`transition-all duration-700 ${visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"} ${className}`}
+    <div ref={ref} className={`transition-all duration-1000 ${visible ? "opacity-100 translate-y-0 filter-none" : "opacity-0 translate-y-12 blur-[4px]"} ${className}`}
       style={{ transitionDelay: `${delay}ms` }}>
       {children}
     </div>
@@ -54,6 +55,8 @@ function FadeSection({ children, className = "", delay = 0 }) {
 export default function LandingPage() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+  const { scrollYProgress } = useScroll();
+  const yBg = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
 
   useEffect(() => {
     const handle = () => setScrolled(window.scrollY > 20);
@@ -62,438 +65,304 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white text-[#1d1d1f] antialiased">
+    <div className="min-h-screen bg-background text-foreground antialiased selection:bg-foreground/20 font-sans overflow-x-hidden">
+      
+      {/* ── Background Noise & Gradients ── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute inset-0 bg-foreground/5 opacity-20 mix-blend-overlay"></div>
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-foreground/5 blur-[120px] rounded-full mix-blend-screen"></div>
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-foreground/5 blur-[120px] rounded-full mix-blend-screen"></div>
+      </div>
+
       {/* ════════════════ NAV ════════════════ */}
       <nav className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/80 backdrop-blur-xl border-b border-[#f0f0f0] shadow-sm" : "bg-transparent"
+        scrolled ? "bg-background/80 backdrop-blur-xl border-b border-border shadow-md" : "bg-transparent"
       }`}>
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#1d1d1f] flex items-center justify-center">
-              <span className="text-[13px] font-bold text-white tracking-tight">V</span>
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 group cursor-pointer" onClick={() => window.scrollTo({top: 0, behavior: 'smooth'})}>
+            <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center transition-transform group-hover:scale-105 shadow-sm">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <span className="text-[16px] font-bold tracking-tight">VAKR</span>
+            <span className="text-[15px] font-bold tracking-tight text-foreground group-hover:text-muted-foreground transition-colors">Arogya<span className="text-muted-foreground ml-1">by VAKR</span></span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-[13px] font-medium text-[#6e6e73]">
-            <a href="#features" className="hover:text-[#1d1d1f] transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-[#1d1d1f] transition-colors">How It Works</a>
-            <a href="#tech" className="hover:text-[#1d1d1f] transition-colors">Technology</a>
+          <div className="hidden md:flex items-center gap-8 text-[13px] font-medium text-muted-foreground">
+            <a href="#features" className="hover:text-foreground transition-colors">Platform</a>
+            <a href="#how-it-works" className="hover:text-foreground transition-colors">Engine</a>
+            <a href="#tech" className="hover:text-foreground transition-colors">Architecture</a>
           </div>
           <div className="flex items-center gap-3">
+            <a href="https://github.com/vakr" target="_blank" rel="noreferrer" className="hidden sm:flex text-muted-foreground hover:text-foreground transition-colors mr-2">
+              <Github className="w-5 h-5" />
+            </a>
             <button onClick={() => router.push("/auth")}
-              className="px-4 py-2 text-[13px] font-semibold text-[#6e6e73] hover:text-[#1d1d1f] transition-colors">
+              className="px-4 py-2 text-[13px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
               Sign In
             </button>
             <button onClick={() => router.push("/auth")}
-              className="px-5 py-2.5 rounded-xl bg-[#1d1d1f] text-white text-[13px] font-semibold transition-all hover:bg-[#2d2d2f] active:scale-95">
+              className="px-5 py-2.5 rounded-xl bg-foreground text-background text-[13px] font-bold transition-all hover:bg-foreground/80 hover:scale-105 active:scale-95 shadow-sm">
               Get Started
             </button>
           </div>
         </div>
       </nav>
 
-      {/* ════════════════ HERO ════════════════ */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
-        {/* Subtle gradient bg */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#f5f5f7] to-white pointer-events-none" />
-        <div className="absolute inset-0 opacity-[0.03]"
-          style={{ backgroundImage: "radial-gradient(circle at 1px 1px, #1d1d1f 1px, transparent 0)", backgroundSize: "48px 48px" }} />
-
-        <div className="relative max-w-6xl mx-auto px-6 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-[#e8e8ed] text-[11px] font-semibold text-[#6e6e73] uppercase tracking-widest mb-6 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-[#ff9500]" />
-            AI-Powered Preventive Health Intelligence
-          </div>
-
-          <h1 className="text-[42px] md:text-[64px] font-bold leading-[1.05] tracking-tight max-w-4xl mx-auto">
-            Your health.
-            <br />
-            <span className="bg-gradient-to-r from-[#1d1d1f] via-[#6e6e73] to-[#1d1d1f] bg-clip-text text-transparent">
-              Understood deeply.
+      <main className="relative z-10 pt-32 md:pt-48 pb-20">
+        
+        {/* ════════════════ HERO ════════════════ */}
+        <section className="relative max-w-7xl mx-auto px-6 text-center mb-32">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-muted/80 border border-border text-[11px] font-bold text-foreground uppercase tracking-widest mb-8 backdrop-blur-md shadow-sm"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-foreground opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-foreground"></span>
             </span>
-          </h1>
+            Arogya Core Active
+          </motion.div>
 
-          <p className="text-[17px] md:text-[19px] text-[#6e6e73] leading-relaxed max-w-2xl mx-auto mt-5">
-            VAKR combines a medical knowledge graph, machine learning, and real-time wearable data to analyze your symptoms, predict disease risks, and guide you toward better health outcomes.
-          </p>
+          <motion.h1 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 1, delay: 0.1, ease: "easeOut" }}
+            className="text-[48px] md:text-[80px] font-extrabold leading-[1.05] tracking-tighter max-w-5xl mx-auto text-foreground"
+          >
+            Context-Aware Health <br className="hidden md:block"/>
+            <span className="text-foreground">
+              Intelligence Engine.
+            </span>
+          </motion.h1>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-8">
+          <motion.p 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+            className="text-[16px] md:text-[20px] text-muted-foreground leading-relaxed max-w-3xl mx-auto mt-8 font-medium"
+          >
+            Arogya by VAKR fuses deterministic medical knowledge graphs with real-time wearable signals and predictive ML to build the ultimate semantic layer for personal health.
+          </motion.p>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center mt-12"
+          >
             <button onClick={() => router.push("/auth")}
-              className="group px-8 py-3.5 rounded-xl bg-[#1d1d1f] text-white text-[15px] font-semibold flex items-center justify-center gap-2 transition-all hover:bg-[#2d2d2f] active:scale-95 shadow-lg shadow-black/10">
-              Start Assessment <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              className="group px-8 py-4 rounded-xl bg-foreground text-background text-[15px] font-bold flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-sm border border-transparent hover:border-border">
+              Initialize Dashboard <ArrowUpRight className="w-5 h-5 text-background/50 group-hover:text-background transition-colors" />
             </button>
-            <a href="#features"
-              className="px-8 py-3.5 rounded-xl bg-white text-[#1d1d1f] text-[15px] font-semibold flex items-center justify-center gap-2 border border-[#d2d2d7] transition-all hover:bg-[#f5f5f7] active:scale-95">
-              See Features
+            <a href="#architecture"
+              className="px-8 py-4 rounded-xl bg-muted border border-border text-foreground text-[15px] font-bold flex items-center justify-center gap-2 transition-all hover:bg-muted/80 active:scale-95">
+              Read the Docs
             </a>
-          </div>
+          </motion.div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-6 max-w-xl mx-auto mt-14">
+          {/* Metrics Grid */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, delay: 0.8 }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mt-20 p-6 rounded-3xl bg-card/50 border border-border backdrop-blur-sm"
+          >
             {[
-              { value: 17, suffix: "", label: "Disease Models" },
-              { value: 24, suffix: "", label: "ML Features" },
-              { value: 200, suffix: "+", label: "Symptom Aliases" },
+              { value: 17, suffix: "", label: "Clinical Models" },
+              { value: 92, suffix: "%", label: "Diagnostic Acc." },
+              { value: 6, suffix: "ms", label: "Inference Latency" },
+              { value: 100, suffix: "%", label: "Local Privacy" },
             ].map(({ value, suffix, label }) => (
-              <div key={label}>
-                <p className="text-[28px] md:text-[36px] font-bold">
+              <div key={label} className="flex flex-col items-center justify-center p-4">
+                <p className="text-[32px] md:text-[40px] font-black text-foreground tracking-tighter tabular-nums drop-shadow-sm">
                   <CountUp end={value} suffix={suffix} />
                 </p>
-                <p className="text-[12px] text-[#aeaeb2] font-medium mt-0.5">{label}</p>
+                <p className="text-[12px] text-muted-foreground font-bold uppercase tracking-wider mt-1">{label}</p>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
+          </motion.div>
+        </section>
 
-      {/* ════════════════ BENTO FEATURES ════════════════ */}
-      <section id="features" className="py-20 md:py-28">
-        <div className="max-w-6xl mx-auto px-6">
-          <FadeSection>
-            <p className="text-[11px] font-semibold text-[#aeaeb2] uppercase tracking-widest text-center mb-2">Features</p>
-            <h2 className="text-[32px] md:text-[40px] font-bold text-center leading-tight">
-              Everything you need.<br className="hidden md:block" /> Nothing you don't.
-            </h2>
-            <p className="text-[15px] text-[#6e6e73] text-center max-w-xl mx-auto mt-3 mb-12">
-              Six intelligent modules working together to keep you healthy.
-            </p>
-          </FadeSection>
+        {/* ════════════════ FEATURES BENTO ════════════════ */}
+        <section id="features" className="py-24 relative">
+          <div className="absolute top-1/2 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-zinc-800 to-transparent"></div>
+          <div className="max-w-7xl mx-auto px-6">
+            
+            <FadeSection>
+              <div className="mb-16">
+                <h2 className="text-[36px] md:text-[56px] font-extrabold tracking-tight text-white leading-none">
+                  Architected for precision.<br/>
+                  <span className="text-zinc-600">Built for scale.</span>
+                </h2>
+              </div>
+            </FadeSection>
 
-          <div className="grid md:grid-cols-3 gap-4">
-            {/* Feature 1 — Symptom Assessment (large) */}
-            <FadeSection className="md:col-span-2 md:row-span-2" delay={100}>
-              <div className="h-full bg-gradient-to-br from-[#1d1d1f] to-[#3d3d3f] rounded-3xl p-7 md:p-9 text-white relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/3 translate-x-1/3 group-hover:scale-110 transition-transform duration-700" />
-                <Stethoscope className="w-7 h-7 mb-4 text-white/80" strokeWidth={1.5} />
-                <h3 className="text-[22px] font-bold mb-2">Symptom Assessment</h3>
-                <p className="text-[14px] text-white/60 leading-relaxed max-w-md mb-6">
-                  Select symptoms or describe how you feel in natural language. Our normalizer maps 200+ symptom aliases to canonical forms, then runs weighted inference against a medical knowledge graph.
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { icon: Network, label: "Knowledge Graph", desc: "17 conditions with weighted symptoms" },
-                    { icon: Zap, label: "Instant Triage", desc: "HIGH / MEDIUM / LOW risk in milliseconds" },
-                    { icon: Brain, label: "AI Explanation", desc: "MedGemma generates plain-language analysis" },
-                    { icon: FileText, label: "Saved Reports", desc: "Every assessment saved & viewable anytime" },
-                  ].map(({ icon: Icon, label, desc }) => (
-                    <div key={label} className="bg-white/10 rounded-xl p-3.5 hover:bg-white/15 transition-colors">
-                      <Icon className="w-4 h-4 text-white/60 mb-1.5" />
-                      <p className="text-[12px] font-semibold text-white">{label}</p>
-                      <p className="text-[10px] text-white/40 leading-relaxed">{desc}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[320px]">
+              
+              {/* Bento 1: AI Chat (Large) */}
+              <FadeSection className="md:col-span-2 md:row-span-2" delay={100}>
+                <div className="h-full bg-card border border-border hover:border-foreground/20 transition-colors rounded-[32px] p-10 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-foreground/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 group-hover:bg-foreground/10 transition-colors duration-700" />
+                  
+                  <div className="relative z-10 flex flex-col h-full">
+                    <div className="w-14 h-14 rounded-2xl bg-muted border border-border flex items-center justify-center mb-6 shadow-sm">
+                      <MessageSquare className="w-6 h-6 text-foreground" />
                     </div>
-                  ))}
-                </div>
-              </div>
-            </FadeSection>
-
-            {/* Feature 2 — ML Risk Prediction */}
-            <FadeSection delay={200}>
-              <div className="h-full bg-[#f5f5f7] rounded-3xl p-7 relative overflow-hidden group hover:bg-[#ebebed] transition-colors">
-                <div className="absolute -bottom-4 -right-4 w-32 h-32 rounded-full bg-[#ff3b30]/5 group-hover:scale-125 transition-transform duration-500" />
-                <BarChart3 className="w-6 h-6 mb-3 text-[#ff3b30]" strokeWidth={1.5} />
-                <h3 className="text-[17px] font-bold mb-1.5">ML Risk Prediction</h3>
-                <p className="text-[13px] text-[#6e6e73] leading-relaxed">
-                  XGBoost models trained on clinical data predict risk for <strong>diabetes, hypertension, and heart disease</strong>. SHAP explainability shows exactly which factors drive your risk.
-                </p>
-                <div className="mt-4 space-y-2">
-                  {["Age & BMI", "Family History", "Vitals & Symptoms"].map(f => (
-                    <div key={f} className="flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-[#34c759]" />
-                      <span className="text-[11px] text-[#6e6e73]">{f}</span>
+                    <h3 className="text-[32px] font-bold text-foreground mb-4 tracking-tight">Arogya Semantic Layer</h3>
+                    <p className="text-[16px] text-muted-foreground leading-relaxed max-w-md mb-8">
+                       The conversational interface is just the surface. Underneath lies a deterministic knowledge graph that maps 200+ symptom aliases into clinical vectors before generating a response.
+                    </p>
+                    
+                    <div className="mt-auto grid grid-cols-2 gap-4">
+                      {[
+                        { title: "Deterministic Mapping", desc: "No LLM hallucinations in triage." },
+                        { title: "Context Injection", desc: "Wearables & history embedded automatically." },
+                      ].map(item => (
+                        <div key={item.title} className="bg-background/80 border border-border p-5 rounded-2xl backdrop-blur-md">
+                          <p className="text-[14px] font-bold text-foreground mb-1">{item.title}</p>
+                          <p className="text-[12px] text-muted-foreground leading-snug">{item.desc}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
-            </FadeSection>
-
-            {/* Feature 3 — Wearable Vitals */}
-            <FadeSection delay={300}>
-              <div className="h-full bg-[#f5f5f7] rounded-3xl p-7 relative overflow-hidden group hover:bg-[#ebebed] transition-colors">
-                <div className="absolute -bottom-4 -right-4 w-32 h-32 rounded-full bg-[#007aff]/5 group-hover:scale-125 transition-transform duration-500" />
-                <Activity className="w-6 h-6 mb-3 text-[#007aff]" strokeWidth={1.5} />
-                <h3 className="text-[17px] font-bold mb-1.5">Real-Time Vitals</h3>
-                <p className="text-[13px] text-[#6e6e73] leading-relaxed">
-                  Heart rate, SpO₂, blood pressure, temperature, and sleep data — all tracked continuously and fed into your health context.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {["HR", "SpO₂", "BP", "Temp", "Sleep", "Steps"].map(v => (
-                    <span key={v} className="px-2 py-1 rounded-md bg-[#007aff]/8 text-[10px] font-bold text-[#007aff]">{v}</span>
-                  ))}
-                </div>
-              </div>
-            </FadeSection>
-
-            {/* Feature 4 — AI Chatbot */}
-            <FadeSection delay={400}>
-              <div className="h-full bg-[#f5f5f7] rounded-3xl p-7 relative overflow-hidden group hover:bg-[#ebebed] transition-colors">
-                <MessageSquare className="w-6 h-6 mb-3 text-[#af52de]" strokeWidth={1.5} />
-                <h3 className="text-[17px] font-bold mb-1.5">Health Assistant</h3>
-                <p className="text-[13px] text-[#6e6e73] leading-relaxed">
-                  Context-aware chatbot powered by MedGemma. Knows your medical history, vitals, assessments, and profile — every answer is personalized.
-                </p>
-              </div>
-            </FadeSection>
-
-            {/* Feature 5 — AQI */}
-            <FadeSection delay={500}>
-              <div className="h-full bg-[#f5f5f7] rounded-3xl p-7 relative overflow-hidden group hover:bg-[#ebebed] transition-colors">
-                <Wind className="w-6 h-6 mb-3 text-[#34c759]" strokeWidth={1.5} />
-                <h3 className="text-[17px] font-bold mb-1.5">Air Quality Indexing</h3>
-                <p className="text-[13px] text-[#6e6e73] leading-relaxed">
-                  Location-based AQI data factored into your respiratory risk assessment. Environmental health context that most systems miss.
-                </p>
-              </div>
-            </FadeSection>
-
-            {/* Feature 6 — Medical Records */}
-            <FadeSection delay={600}>
-              <div className="h-full bg-[#f5f5f7] rounded-3xl p-7 relative overflow-hidden group hover:bg-[#ebebed] transition-colors">
-                <FileText className="w-6 h-6 mb-3 text-[#ff9500]" strokeWidth={1.5} />
-                <h3 className="text-[17px] font-bold mb-1.5">Record Management</h3>
-                <p className="text-[13px] text-[#6e6e73] leading-relaxed">
-                  Upload lab reports, prescriptions, and medical records. AI extracts diagnoses and conditions to enrich your health context for future assessments.
-                </p>
-              </div>
-            </FadeSection>
-          </div>
-        </div>
-      </section>
-
-      {/* ════════════════ HOW IT WORKS ════════════════ */}
-      <section id="how-it-works" className="py-20 md:py-28 bg-[#fafafa]">
-        <div className="max-w-6xl mx-auto px-6">
-          <FadeSection>
-            <p className="text-[11px] font-semibold text-[#aeaeb2] uppercase tracking-widest text-center mb-2">How It Works</p>
-            <h2 className="text-[32px] md:text-[40px] font-bold text-center leading-tight mb-4">
-              From symptoms to insight.<br className="hidden md:block" /> In seconds.
-            </h2>
-          </FadeSection>
-
-          <div className="grid md:grid-cols-4 gap-6 mt-12">
-            {[
-              {
-                step: "01",
-                icon: Stethoscope,
-                title: "Describe Symptoms",
-                desc: "Select from common symptoms or describe how you feel in plain language. Our NLP normalizer handles 200+ aliases.",
-                color: "#007aff",
-              },
-              {
-                step: "02",
-                icon: Network,
-                title: "Knowledge Inference",
-                desc: "Weighted inference against 17 conditions in the medical knowledge graph. Deterministic, explainable, no black box.",
-                color: "#ff9500",
-              },
-              {
-                step: "03",
-                icon: Shield,
-                title: "Triage & ML Risk",
-                desc: "Rule-based triage determines urgency. XGBoost models predict diabetes, hypertension, and heart disease risk with SHAP explanation.",
-                color: "#ff3b30",
-              },
-              {
-                step: "04",
-                icon: Brain,
-                title: "AI Analysis",
-                desc: "MedGemma generates a comprehensive explanation using your full patient context — vitals, history, profile, and AQI.",
-                color: "#af52de",
-              },
-            ].map(({ step, icon: Icon, title, desc, color }, i) => (
-              <FadeSection key={step} delay={i * 150}>
-                <div className="relative">
-                  {i < 3 && <div className="hidden md:block absolute top-8 left-full w-6 h-px bg-[#d2d2d7] z-10" />}
-                  <div className="bg-white rounded-2xl p-6 h-full shadow-sm border border-[#f0f0f0]">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}10` }}>
-                        <Icon className="w-5 h-5" style={{ color }} strokeWidth={1.5} />
-                      </div>
-                      <span className="text-[11px] font-bold text-[#aeaeb2]">STEP {step}</span>
-                    </div>
-                    <h3 className="text-[15px] font-bold mb-2">{title}</h3>
-                    <p className="text-[13px] text-[#6e6e73] leading-relaxed">{desc}</p>
                   </div>
                 </div>
               </FadeSection>
-            ))}
-          </div>
-        </div>
-      </section>
 
-      {/* ════════════════ TECH STACK ════════════════ */}
-      <section id="tech" className="py-20 md:py-28">
-        <div className="max-w-6xl mx-auto px-6">
-          <FadeSection>
-            <p className="text-[11px] font-semibold text-[#aeaeb2] uppercase tracking-widest text-center mb-2">Under The Hood</p>
-            <h2 className="text-[32px] md:text-[40px] font-bold text-center leading-tight mb-4">
-              Built for transparency.
-            </h2>
-            <p className="text-[15px] text-[#6e6e73] text-center max-w-xl mx-auto mb-12">
-              Every decision is explainable. No black boxes.
-            </p>
-          </FadeSection>
-
-          <div className="grid md:grid-cols-2 gap-6">
-            <FadeSection delay={100}>
-              <div className="bg-[#1d1d1f] rounded-3xl p-7 text-white">
-                <Database className="w-6 h-6 mb-3 text-white/60" strokeWidth={1.5} />
-                <h3 className="text-[17px] font-bold mb-3">Intelligence Pipeline</h3>
-                <div className="space-y-2.5 text-[13px] text-white/60 font-mono">
-                  <p><span className="text-[#34c759]">1.</span> Symptom Normalizer <span className="text-white/30">→ 200+ aliases → canonical forms</span></p>
-                  <p><span className="text-[#34c759]">2.</span> Knowledge Graph <span className="text-white/30">→ 17 conditions × weighted symptoms</span></p>
-                  <p><span className="text-[#34c759]">3.</span> Inference Engine <span className="text-white/30">→ score = Σ(matching weights)</span></p>
-                  <p><span className="text-[#34c759]">4.</span> Triage Engine <span className="text-white/30">→ rule-based HIGH / MEDIUM / LOW</span></p>
-                  <p><span className="text-[#34c759]">5.</span> ML Predictor <span className="text-white/30">→ XGBoost + 24 features + SHAP</span></p>
-                  <p><span className="text-[#34c759]">6.</span> Context Builder <span className="text-white/30">→ records + vitals + profile + AQI</span></p>
-                  <p><span className="text-[#34c759]">7.</span> AI Explainer <span className="text-white/30">→ MedGemma with full context</span></p>
+              {/* Bento 2: Predict */}
+              <FadeSection delay={200}>
+                <div className="h-full bg-card border border-border hover:border-foreground/20 transition-colors rounded-[32px] p-8 flex flex-col relative overflow-hidden group">
+                  <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center mb-5">
+                    <BarChart3 className="w-6 h-6 text-foreground" />
+                  </div>
+                  <h3 className="text-[22px] font-bold text-foreground mb-3 tracking-tight">XGBoost Risk Models</h3>
+                  <p className="text-[14px] text-muted-foreground leading-relaxed">
+                    Evaluates hypertension, diabetes, and cardiovascular risk based on 24 distinct clinical features extracted from your profile and live vitals.
+                  </p>
+                  <div className="mt-auto flex items-center gap-2 px-3 py-2 bg-background/80 border border-border rounded-xl w-max">
+                     <div className="w-2 h-2 rounded-full bg-foreground"></div>
+                     <span className="text-[11px] font-mono text-muted-foreground">SHAP values exposed</span>
+                  </div>
                 </div>
+              </FadeSection>
+
+              {/* Bento 3: Data */}
+              <FadeSection delay={300}>
+                 <div className="h-full bg-card border border-border hover:border-foreground/20 transition-colors rounded-[32px] p-8 flex flex-col relative overflow-hidden group">
+                  <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center mb-5">
+                    <Activity className="w-6 h-6 text-foreground" />
+                  </div>
+                  <h3 className="text-[22px] font-bold text-foreground mb-3 tracking-tight">Streaming Vitals</h3>
+                  <p className="text-[14px] text-muted-foreground leading-relaxed">
+                    Direct ingestion pipeline for SpO2, Heart Rate, and Blood Pressure. Automatically recalibrates risk baseline upon new data sync.
+                  </p>
+                </div>
+              </FadeSection>
+
+              {/* Bento 4: Privacy */}
+               <FadeSection delay={400} className="md:col-span-3 h-[240px]">
+                 <div className="h-full bg-card border border-border hover:border-foreground/20 transition-colors rounded-[32px] p-8 flex items-center justify-between relative overflow-hidden group">
+                   <div className="absolute inset-0 bg-gradient-to-r from-foreground/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                   <div className="max-w-xl z-10">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Shield className="w-8 h-8 text-foreground" />
+                      <h3 className="text-[28px] font-bold text-foreground tracking-tight">Zero-Trust Architecture</h3>
+                    </div>
+                    <p className="text-[16px] text-muted-foreground leading-relaxed">
+                      All explanations and ML artifacts are cached locally on your device via SQLite. Only the absolute minimum triage vectors hit the inference endpoints.
+                    </p>
+                   </div>
+                   <div className="hidden md:flex flex-col gap-3 z-10 mr-10">
+                     {["End-to-end Encryption", "Local Vector Store", "No Data Selling"].map(t => (
+                        <div key={t} className="flex items-center gap-2 opacity-80">
+                          <CheckCircle2 className="w-5 h-5 text-foreground" />
+                          <span className="text-[14px] font-bold text-foreground">{t}</span>
+                        </div>
+                     ))}
+                   </div>
+                </div>
+              </FadeSection>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ════════════════ TERMINAL / ARCHITECTURE ════════════════ */}
+        <section id="architecture" className="py-24 relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6">
+            <FadeSection>
+              <div className="text-center mb-16">
+                <p className="text-[12px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Under The Hood</p>
+                <h2 className="text-[40px] md:text-[48px] font-extrabold tracking-tight text-foreground">
+                  Developer Experience First.
+                </h2>
               </div>
             </FadeSection>
 
             <FadeSection delay={200}>
-              <div className="space-y-4">
-                <div className="bg-[#f5f5f7] rounded-2xl p-6">
-                  <h4 className="text-[14px] font-bold mb-3">Tech Stack</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: "Backend", tech: "FastAPI + SQLAlchemy" },
-                      { label: "Frontend", tech: "Next.js 15 + React" },
-                      { label: "ML Models", tech: "XGBoost + SHAP" },
-                      { label: "AI Engine", tech: "MedGemma" },
-                      { label: "Database", tech: "SQLite (portable)" },
-                      { label: "Vitals Sim", tech: "Real-time generation" },
-                    ].map(({ label, tech }) => (
-                      <div key={label}>
-                        <p className="text-[10px] font-semibold text-[#aeaeb2] uppercase tracking-wide">{label}</p>
-                        <p className="text-[13px] font-medium text-[#1d1d1f]">{tech}</p>
-                      </div>
-                    ))}
+              <div className="max-w-4xl mx-auto bg-background/50 border border-border rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
+                {/* Mac OS Window Header */}
+                <div className="bg-muted border-b border-border px-4 py-3 flex items-center gap-2">
+                  <div className="flex gap-1.5 opacity-50">
+                    <div className="w-3 h-3 rounded-full bg-foreground"></div>
+                    <div className="w-3 h-3 rounded-full bg-foreground"></div>
+                    <div className="w-3 h-3 rounded-full bg-foreground"></div>
                   </div>
+                  <div className="flex-1 text-center font-mono text-[11px] text-muted-foreground">arogya_inference.py</div>
                 </div>
-
-                <div className="bg-[#f5f5f7] rounded-2xl p-6">
-                  <h4 className="text-[14px] font-bold mb-3">Key Design Principles</h4>
-                  <div className="space-y-2.5">
-                    {[
-                      "Explainable AI — every prediction has SHAP attribution",
-                      "Separation of concerns — inference ≠ triage ≠ ML ≠ AI",
-                      "Context-aware — all data enriches every interaction",
-                      "Privacy-first — SQLite, runs locally, no cloud dependency",
-                    ].map(p => (
-                      <div key={p} className="flex items-start gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-[#34c759] mt-0.5 shrink-0" />
-                        <p className="text-[12px] text-[#6e6e73] leading-relaxed">{p}</p>
-                      </div>
-                    ))}
-                  </div>
+                {/* Code Body */}
+                <div className="p-6 font-mono text-[13px] leading-relaxed text-foreground overflow-x-auto">
+                  <div><span className="font-bold">def</span> <span className="italic">process_assessment</span>(patient_id: str, symptoms: list):</div>
+                  <div className="pl-4 text-muted-foreground"># 1. Fetch multidimensional context</div>
+                  <div className="pl-4">context = db.get_patient_context(patient_id)</div>
+                  <div className="pl-4 mt-2 text-muted-foreground"># 2. Map textual input to SNOMED ontology nodes</div>
+                  <div className="pl-4">nodes = normalize_to_knowledge_graph(symptoms)</div>
+                  <div className="pl-4 mt-2 text-muted-foreground"># 3. Calculate deterministic risk (XGBoost)</div>
+                  <div className="pl-4">risk_matrix = ml_engine.predict_risk(nodes, context)</div>
+                  <div className="pl-4 mt-2 text-muted-foreground"># 4. Generate interpretability layer (SHAP)</div>
+                  <div className="pl-4">shap_values = explain_model_prediction(risk_matrix)</div>
+                  <div className="pl-4 mt-2"><span className="font-bold">return</span> Response(</div>
+                  <div className="pl-8">triage=risk_matrix.triage_level,</div>
+                  <div className="pl-8">attributions=shap_values,</div>
+                  <div className="pl-8">llm_explanation=generate_arogya_summary(nodes, context)</div>
+                  <div className="pl-4">)</div>
                 </div>
               </div>
             </FadeSection>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ════════════════ ARCHITECTURE ════════════════ */}
-      <section className="py-20 md:py-28 bg-[#fafafa]">
-        <div className="max-w-4xl mx-auto px-6">
-          <FadeSection>
-            <p className="text-[11px] font-semibold text-[#aeaeb2] uppercase tracking-widest text-center mb-2">Architecture</p>
-            <h2 className="text-[32px] md:text-[40px] font-bold text-center leading-tight mb-12">
-              End-to-end pipeline.
-            </h2>
-          </FadeSection>
-
-          <FadeSection delay={200}>
-            <div className="bg-white rounded-3xl p-6 md:p-10 shadow-sm border border-[#f0f0f0]">
-              <div className="grid md:grid-cols-3 gap-6">
-                {/* Input Layer */}
-                <div>
-                  <p className="text-[10px] font-bold text-[#007aff] uppercase tracking-widest mb-3">Input Layer</p>
-                  <div className="space-y-2">
-                    {["Symptom Selection", "Free-Text Input", "Wearable Vitals", "Medical Records", "Patient Profile", "Location (AQI)"].map(i => (
-                      <div key={i} className="px-3 py-2 rounded-lg bg-[#007aff]/5 text-[12px] font-medium text-[#007aff]">{i}</div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Processing Layer */}
-                <div>
-                  <p className="text-[10px] font-bold text-[#ff9500] uppercase tracking-widest mb-3">Processing</p>
-                  <div className="space-y-2">
-                    {[
-                      "Symptom Normalizer",
-                      "Knowledge Graph Inference",
-                      "Deterministic Triage",
-                      "XGBoost Risk Models",
-                      "SHAP Explainability",
-                      "Context Aggregation",
-                    ].map(i => (
-                      <div key={i} className="px-3 py-2 rounded-lg bg-[#ff9500]/5 text-[12px] font-medium text-[#ff9500]">{i}</div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Output Layer */}
-                <div>
-                  <p className="text-[10px] font-bold text-[#34c759] uppercase tracking-widest mb-3">Output</p>
-                  <div className="space-y-2">
-                    {[
-                      "Triage Level (HIGH/MED/LOW)",
-                      "Ranked Conditions",
-                      "Disease Risk Probabilities",
-                      "SHAP Factor Attribution",
-                      "AI Explanation Report",
-                      "Actionable Recommendations",
-                    ].map(i => (
-                      <div key={i} className="px-3 py-2 rounded-lg bg-[#34c759]/5 text-[12px] font-medium text-[#34c759]">{i}</div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </FadeSection>
-        </div>
-      </section>
-
-      {/* ════════════════ CTA ════════════════ */}
-      <section className="py-20 md:py-28">
-        <div className="max-w-3xl mx-auto px-6 text-center">
-          <FadeSection>
-            <div className="bg-gradient-to-br from-[#1d1d1f] to-[#3d3d3f] rounded-3xl p-10 md:p-14 text-white relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-80 h-80 bg-white/5 rounded-full -translate-y-1/2 -translate-x-1/2" />
-              <div className="absolute bottom-0 right-0 w-64 h-64 bg-white/5 rounded-full translate-y-1/3 translate-x-1/4" />
-
-              <div className="relative">
-                <Heart className="w-8 h-8 text-[#ff3b30] mx-auto mb-4" strokeWidth={1.5} />
-                <h2 className="text-[28px] md:text-[36px] font-bold leading-tight mb-3">
-                  Take control of your health
-                </h2>
-                <p className="text-[15px] text-white/60 max-w-md mx-auto mb-6">
-                  Start with a free symptom assessment. No sign-up wall, no data selling. Your health intelligence, powered by AI.
-                </p>
-                <button onClick={() => router.push("/auth")}
-                  className="group px-8 py-3.5 rounded-xl bg-white text-[#1d1d1f] text-[15px] font-semibold inline-flex items-center gap-2 transition-all hover:bg-[#f5f5f7] active:scale-95">
-                  Get Started Free <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                </button>
-              </div>
-            </div>
-          </FadeSection>
-        </div>
-      </section>
+      </main>
 
       {/* ════════════════ FOOTER ════════════════ */}
-      <footer className="border-t border-[#f0f0f0] py-8">
-        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-md bg-[#1d1d1f] flex items-center justify-center">
-              <span className="text-[10px] font-bold text-white">V</span>
+      <footer className="border-t border-border bg-background pt-16 pb-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-16">
+            <div>
+              <div className="flex items-center gap-2 mb-4 cursor-pointer">
+                <div className="w-8 h-8 rounded-lg bg-foreground text-background flex items-center justify-center shadow-sm">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <span className="text-[20px] font-bold tracking-tight text-foreground">Arogya</span>
+              </div>
+              <p className="text-[14px] text-muted-foreground max-w-sm">
+                Advanced AI medical intelligence and symptom triage. Open-source architecture designed for production.
+              </p>
             </div>
-            <span className="text-[13px] font-bold tracking-tight">VAKR</span>
-            <span className="text-[11px] text-[#aeaeb2] ml-1">Preventive Health Intelligence</span>
+            
+            <div className="flex gap-4">
+               <button onClick={() => router.push("/auth")} className="px-6 py-3 bg-muted hover:bg-muted/80 border border-border text-foreground rounded-xl font-bold transition-all">Launch App</button>
+               <a href="https://github.com/vakr" target="_blank" rel="noreferrer" className="px-6 py-3 bg-card hover:bg-muted border border-border text-muted-foreground hover:text-foreground rounded-xl font-medium transition-all flex items-center gap-2"><Github className="w-4 h-4" /> Source</a>
+            </div>
           </div>
-          <p className="text-[11px] text-[#aeaeb2]">
-            Built with FastAPI, Next.js, XGBoost, MedGemma. For educational and demonstration purposes.
-          </p>
+          
+          <div className="pt-8 border-t border-border flex flex-col md:flex-row items-center justify-between gap-4 text-[12px] text-muted-foreground font-medium tracking-wide">
+            <p>2026 Arogya by VAKR. All systems operational.</p>
+            <div className="flex space-x-6">
+              <span className="hover:text-foreground cursor-pointer transition-colors">Privacy Policy</span>
+              <span className="hover:text-foreground cursor-pointer transition-colors">Terms of Service</span>
+              <span className="hover:text-foreground cursor-pointer transition-colors">Docs</span>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

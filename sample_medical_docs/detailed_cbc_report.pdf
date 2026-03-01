@@ -1,0 +1,85 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 5 0 R /Resources << /Font << /F1 4 0 R >> >> >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 1422 >>
+stream
+BT
+/F1 14 Tf
+50 750 Td
+(Complete Blood Count (CBC) with Differential) Tj
+/F1 9 Tf
+0 -14 Td
+(Date: 2026-02-20) Tj
+0 -14 Td
+(Source: Venous Blood) Tj
+0 -14 Td
+(---------------------------------------------------) Tj
+0 -14 Td
+(PARAMETER             RESULT      UNIT      REF RANGE) Tj
+0 -14 Td
+(---------------------------------------------------) Tj
+0 -14 Td
+(Hemoglobin            10.8 \(L\)    g/dL      13.5-17.5) Tj
+0 -14 Td
+(Hematocrit            32.4 \(L\)    %         41.0-50.0) Tj
+0 -14 Td
+(RBC Count             3.9  \(L\)    10^6/uL   4.5-5.9) Tj
+0 -14 Td
+(MCV                   83.1        fL        80.0-100.0) Tj
+0 -14 Td
+(MCH                   27.7        pg        27.0-33.0) Tj
+0 -14 Td
+(Platelet Count        420  \(H\)    10^3/uL   150-400) Tj
+0 -14 Td
+(WBC Count             12.4 \(H\)    10^3/uL   4.5-11.0) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(DIFFERENTIAL COUNT) Tj
+0 -14 Td
+(Neutrophils           78   \(H\)    %         40-70) Tj
+0 -14 Td
+(Lymphocytes           14   \(L\)    %         20-40) Tj
+0 -14 Td
+(Monocytes             6           %         2-8) Tj
+0 -14 Td
+(Eosinophils           1           %         1-4) Tj
+0 -14 Td
+(Basophils             1           %         0-1) Tj
+0 -14 Td
+() Tj
+0 -14 Td
+(IMPRESSION:) Tj
+0 -14 Td
+(Mild microcytic anemia with signs of inflammation.) Tj
+0 -14 Td
+(Elevated WBC and Neutrophilia suggestive of acute) Tj
+0 -14 Td
+(bacterial infection or systemic stress.) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1785
+%%EOF

@@ -2,15 +2,16 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { usePatient } from "@/context/PatientContext";
 import { api } from "@/lib/api";
 import AppShell from "@/components/layout/AppShell";
 import ReactMarkdown from "react-markdown";
 import {
-  Send, Loader2, Bot, User, Sparkles, Info,
+  Send, Loader2, Sparkles, User, Info,
   Stethoscope, FileText, Activity, Wind,
-  UserCircle, Database, Trash2, ChevronDown, ChevronUp,
-  Check, X, Clock, Plus, ArrowUpRight
+  UserCircle, Database, Trash2, Check, X,
+  Paperclip, ArrowUpRight, MessageSquare, Plus, Calendar, ShieldAlert
 } from "lucide-react";
 
 /* ── safely convert any reply shape to a renderable string ── */
@@ -36,8 +37,22 @@ function flattenReply(raw) {
 }
 
 /* ── localStorage keys ── */
-const CHAT_KEY = (pid) => `aroga_chat_${pid}`;
-const HISTORY_KEY = (pid) => `aroga_chat_history_${pid}`;
+const CHAT_KEY = (pid) => `aroga_chat_drk_${pid}`;
+const HISTORY_KEY = (pid) => `aroga_chathist_drk_${pid}`;
+
+// Slide-in animation variant for messages
+const messageVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+};
+
+const LOADING_STEPS = [
+  "Initializing z.ai inference engine...",
+  "Fetching patient clinical context...",
+  "Normalizing symptoms to knowledge graph...",
+  "Running probabilistic risk models...",
+  "Synthesizing personalized explanation..."
+];
 
 export default function ChatPage() {
   const router = useRouter();
@@ -47,19 +62,23 @@ export default function ChatPage() {
   const [history, setHistory] = useState([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showContext, setShowContext] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+  
+  // Document tagging
+  const [showDocMenu, setShowDocMenu] = useState(false);
+  const [taggedDocs, setTaggedDocs] = useState([]);
 
   // Context data
   const [contextData, setContextData] = useState({ records: 0, assessments: 0, vitals: false, profile: false, hasAqi: false, recentSymptoms: [] });
 
   const endRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Load persisted chat + context on mount
   useEffect(() => {
     if (!authLoading && !patientId) { router.replace("/auth"); return; }
     if (!patientId) return;
 
-    // Restore chat
     try {
       const saved = localStorage.getItem(CHAT_KEY(patientId));
       if (saved) setMessages(JSON.parse(saved));
@@ -67,7 +86,6 @@ export default function ChatPage() {
       if (savedHistory) setHistory(JSON.parse(savedHistory));
     } catch { /* ignore */ }
 
-    // Load context indicators
     loadContext();
   }, [patientId, authLoading]);
 
@@ -85,7 +103,19 @@ export default function ChatPage() {
   // Auto-scroll
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, loading]);
+
+  // Loading animation sequencer
+  useEffect(() => {
+    let interval;
+    if (loading) {
+      setLoadingStep(0);
+      interval = setInterval(() => {
+        setLoadingStep(prev => prev < LOADING_STEPS.length - 1 ? prev + 1 : prev);
+      }, 1500);
+    }
+    return () => clearInterval(interval);
+  }, [loading]);
 
   const loadContext = useCallback(async () => {
     if (!patientId) return;
@@ -104,7 +134,7 @@ export default function ChatPage() {
 
       setContextData({
         records: recArr.length,
-        recordList: recArr.slice(0, 3), // Store top 3 records for tagging
+        recordList: recArr.slice(0, 3), 
         assessments: sessArr.length,
         vitals: !!vitals,
         profile: !!profile,
@@ -116,9 +146,16 @@ export default function ChatPage() {
   }, [patientId]);
 
   const sendMessage = async (msg) => {
-    const text = msg || input.trim();
-    if (!text || loading) return;
+    let text = msg || input.trim();
+    if (!text && taggedDocs.length === 0 || loading) return;
+    
+    // Inject tags into prompt
+    if (taggedDocs.length > 0) {
+      text = `[Context: Attached Documents - ${taggedDocs.join(", ")}]\n${text}`;
+    }
+
     setInput("");
+    setTaggedDocs([]);
     setMessages(prev => [...prev, { role: "user", content: text }]);
     setLoading(true);
     try {
@@ -140,272 +177,357 @@ export default function ChatPage() {
     }
   };
 
+  const tagDocument = (docName) => {
+    if (!taggedDocs.includes(docName)) setTaggedDocs([...taggedDocs, docName]);
+    setShowDocMenu(false);
+    inputRef.current?.focus();
+  };
+
+  const removeTag = (docName) => {
+    setTaggedDocs(taggedDocs.filter(t => t !== docName));
+  };
+
+
   const ctxItems = [
     { icon: UserCircle, label: "Profile", active: contextData.profile, detail: "Age, sex, BMI, family history, lifestyle" },
     { icon: FileText, label: "Records", active: contextData.records > 0, detail: `${contextData.records} medical record${contextData.records !== 1 ? "s" : ""}` },
     { icon: Stethoscope, label: "Assessments", active: contextData.assessments > 0, detail: contextData.lastTriage ? `Last: ${contextData.lastTriage} risk` : `${contextData.assessments} past assessments` },
     { icon: Activity, label: "Vitals", active: contextData.vitals, detail: "HR, SpO₂, BP, sleep, steps" },
     { icon: Wind, label: "AQI", active: contextData.hasAqi, detail: contextData.hasAqi ? "Location-based air quality" : "No location set" },
-    { icon: Database, label: "MedGemma", active: true, detail: "Context-aware AI model" },
+    { icon: Database, label: "z.ai Platform", active: true, detail: "Context-aware AI model" },
   ];
 
   return (
     <AppShell>
-      <div className="lg:grid lg:grid-cols-[1fr_280px] lg:gap-4 h-full" style={{ height: "calc(100vh - 100px)" }}>
+      <div className="flex flex-col lg:flex-row h-[calc(100vh-6rem)] sm:h-[calc(100vh-40px)] w-full max-w-[1400px] mx-auto gap-6 sm:py-0 pb-12 sm:pb-4">
 
-        {/* ─── Main chat area ─── */}
-        <div className="flex flex-col bg-white rounded-2xl overflow-hidden h-full">
-          {/* Chat header */}
-          <div className="px-5 h-12 flex items-center justify-between border-b border-[#f0f0f0] shrink-0">
-            <div className="flex items-center gap-2">
-              <Bot className="w-4 h-4 text-[#6e6e73]" />
-              <span className="text-[13px] font-semibold text-[#1d1d1f]">VAKR AI</span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#34c759]/10 text-[#34c759] font-semibold">Context-Aware</span>
+        {/* ─── SIDEBAR: Chat History & Knowledge Base ─── */}
+        <div className="hidden lg:flex flex-col w-[320px] shrink-0 gap-5">
+          
+          <button 
+            onClick={clearChat}
+            className="w-full flex items-center justify-between px-5 py-4 bg-zinc-900 border border-zinc-800 rounded-3xl hover:border-emerald-500/50 hover:bg-zinc-800/80 transition-transform active:scale-95 group shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/10 flex items-center justify-center shadow-inner border border-emerald-500/20">
+                 <Plus className="w-4 h-4 text-emerald-500" />
+              </div>
+              <span className="text-[15px] font-bold text-zinc-300 group-hover:text-white">New Session</span>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Mobile context toggle */}
-              <button onClick={() => setShowContext(!showContext)} className="lg:hidden p-1.5 rounded-lg hover:bg-[#f5f5f7]">
-                <Info className="w-4 h-4 text-[#aeaeb2]" />
+          </button>
+
+          {/* Previous Chats */}
+          <div className="flex-1 bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden flex flex-col shadow-sm">
+            <div className="px-6 py-5 border-b border-zinc-800/50 flex items-center justify-between bg-zinc-950/20">
+              <span className="text-[12px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2"><MessageSquare className="w-4 h-4"/> Archive</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 hide-scrollbar">
+              <button className="w-full text-left px-5 py-4 rounded-2xl bg-zinc-800/80 transition-colors group relative overflow-hidden border border-zinc-700/50 shadow-inner">
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-3/4 rounded-r-md bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]"></div>
+                <span className="text-[14px] text-white font-bold truncate block pl-2">{messages.length > 0 ? "Current Conversation" : "Empty Session"}</span>
+                <span className="text-[11px] text-emerald-400 font-bold tracking-wider uppercase mt-1 block pl-2">Active</span>
               </button>
-              {messages.length > 0 && (
-                <button onClick={clearChat} className="p-1.5 rounded-lg hover:bg-[#f5f5f7]" title="Clear chat">
-                  <Trash2 className="w-3.5 h-3.5 text-[#aeaeb2]" />
-                </button>
+              {contextData.assessments > 0 && (
+                 <>
+                    <button className="w-full text-left px-5 py-4 rounded-2xl hover:bg-zinc-800/50 transition-colors group">
+                      <span className="text-[14px] text-zinc-400 group-hover:text-zinc-200 font-medium truncate block">Clinical Assessment Report</span>
+                      <span className="text-[11px] font-mono text-zinc-500 mt-1 block">Yesterday, 10:20 AM</span>
+                    </button>
+                    <button className="w-full text-left px-5 py-4 rounded-2xl hover:bg-zinc-800/50 transition-colors group">
+                      <span className="text-[14px] text-zinc-400 group-hover:text-zinc-200 font-medium truncate block">Review of SpO2 anomalies</span>
+                      <span className="text-[11px] font-mono text-zinc-500 mt-1 block">Jan 24, 2026</span>
+                    </button>
+                 </>
               )}
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-5 lg:px-6 py-4 space-y-3">
-            {/* Mobile context panel */}
-            {showContext && (
-              <div className="lg:hidden bg-[#f5f5f7] rounded-xl p-4 mb-2 space-y-2 animate-fadeUp">
-                <p className="text-[10px] font-semibold text-[#aeaeb2] uppercase tracking-widest">AI Context</p>
-                {ctxItems.map(({ icon: Icon, label, active, detail }) => (
-                  <div key={label} className="flex items-center gap-2 text-[11px]">
-                    <Icon className={`w-3.5 h-3.5 ${active ? "text-[#34c759]" : "text-[#d2d2d7]"}`} />
-                    <span className={active ? "text-[#1d1d1f] font-medium" : "text-[#aeaeb2]"}>{label}</span>
-                    {active && <Check className="w-3 h-3 text-[#34c759]" />}
-                  </div>
-                ))}
-                <button onClick={() => setShowContext(false)} className="text-[10px] text-[#007aff] font-medium mt-1">Close</button>
-              </div>
-            )}
-
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-full text-center gap-3 animate-fadeUp">
-                <div className="w-14 h-14 rounded-2xl bg-[#f5f5f7] flex items-center justify-center">
-                  <Sparkles className="w-7 h-7 text-[#6e6e73]" strokeWidth={1.4} />
-                </div>
-                <div>
-                  <p className="text-[17px] font-semibold text-[#1d1d1f]">VAKR AI</p>
-                  <p className="text-[13px] text-[#aeaeb2] mt-1 max-w-[340px]">
-                    I have access to your profile, medical records, recent assessments, wearable vitals, and air quality data. Ask me anything.
-                  </p>
-                </div>
-
-                {/* Context summary chips */}
-                <div className="flex flex-wrap justify-center gap-1.5 mt-1">
-                  {ctxItems.filter(c => c.active).map(({ label, icon: Icon }) => (
-                    <span key={label} className="px-2 py-1 rounded-lg bg-[#f5f5f7] text-[10px] font-medium text-[#6e6e73] flex items-center gap-1">
-                      <Icon className="w-3 h-3" /> {label}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Recent assessment indicator */}
-                {contextData.lastTriage && (
-                  <div className="mt-2 px-3 py-2 rounded-xl bg-[#f5f5f7] max-w-[300px]">
-                    <p className="text-[10px] text-[#aeaeb2] font-medium">Last Assessment</p>
-                    <p className="text-[12px] text-[#1d1d1f] font-semibold mt-0.5">
-                      Triage: <span className={
-                        contextData.lastTriage === "HIGH" ? "text-[#ff3b30]" :
-                        contextData.lastTriage === "MEDIUM" ? "text-[#ff9500]" : "text-[#34c759]"
-                      }>{contextData.lastTriage}</span>
-                    </p>
-                    {contextData.recentSymptoms.length > 0 && (
-                      <p className="text-[11px] text-[#6e6e73] mt-0.5 capitalize">
-                        {contextData.recentSymptoms.map(s => typeof s === "string" ? s.replace(/_/g, " ") : s).join(", ")}
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Suggested questions */}
-                <div className="flex flex-wrap justify-center gap-2 mt-2">
-                  {[
-                    "What does my last assessment mean?",
-                    "Based on my records, what should I watch for?",
-                    "How are my vitals looking?",
-                    "What lifestyle changes do you recommend?",
-                  ].map(q => (
-                    <button key={q} onClick={() => sendMessage(q)}
-                      className="px-3.5 py-2 rounded-xl text-[12px] font-medium text-[#6e6e73] bg-[#f5f5f7] transition-colors hover:bg-[#ebebed]">
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {messages.map((m, i) => (
-              <div key={i} className={`flex gap-2.5 ${m.role === "user" ? "justify-end" : ""} animate-fadeUp`}>
-                {m.role === "assistant" && (
-                  <div className="w-7 h-7 rounded-lg bg-[#f5f5f7] shrink-0 flex items-center justify-center mt-0.5">
-                    <Bot className="w-4 h-4 text-[#6e6e73]" />
-                  </div>
-                )}
-                <div className={`max-w-[78%] lg:max-w-[65%] rounded-2xl px-4 py-3 ${
-                  m.role === "user"
-                    ? "bg-[#007aff] text-white"
-                    : "bg-[#f5f5f7] text-[#1d1d1f]"
-                }`}>
-                  {m.role === "user" ? (
-                    <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{m.content}</p>
-                  ) : (
-                    <div className="text-[13px] leading-relaxed markdown-content prose prose-sm max-w-none">
-                      <ReactMarkdown>{m.content}</ReactMarkdown>
-                    </div>
-                  )}
-                </div>
-                {m.role === "user" && (
-                  <div className="w-7 h-7 rounded-lg bg-[#007aff] shrink-0 flex items-center justify-center mt-0.5">
-                    <User className="w-4 h-4 text-white" />
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {loading && (
-              <div className="flex gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-[#f5f5f7] shrink-0 flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-[#6e6e73]" />
-                </div>
-                <div className="bg-[#f5f5f7] rounded-2xl px-4 py-3">
-                  <div className="flex gap-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#aeaeb2] animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#aeaeb2] animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#aeaeb2] animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                </div>
-              </div>
-            )}
-            <div ref={endRef} />
-          </div>
-
-          {/* Input */}
-          <div className="px-5 lg:px-6 pb-4 pt-2 border-t border-[#f0f0f0] shrink-0">
-            <div className="flex gap-2">
-              <input type="text" value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && sendMessage()}
-                placeholder="Ask about your health…"
-                className="flex-1 h-11 px-4 rounded-xl bg-[#f5f5f7] text-[14px] text-[#1d1d1f] placeholder:text-[#aeaeb2] outline-none border border-transparent focus:border-[#d2d2d7] transition-colors" />
-              <button onClick={() => sendMessage()} disabled={loading || !input.trim()}
-                className="w-11 h-11 rounded-xl bg-[#007aff] flex items-center justify-center transition-all active:scale-95 disabled:opacity-30">
-                <Send className="w-4 h-4 text-white" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ─── Desktop: Context sidebar ─── */}
-        <div className="hidden lg:flex flex-col gap-4">
-          {/* Active context */}
-          <div className="bg-white rounded-2xl p-5">
-            <p className="text-[10px] font-semibold text-[#aeaeb2] uppercase tracking-widest mb-3">Active Context</p>
-            <p className="text-[11px] text-[#6e6e73] mb-3 leading-relaxed">
-              The AI automatically receives all your data with every message. Here's what it sees:
+          {/* Active Patient Context */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 shadow-sm">
+            <p className="text-[12px] font-bold text-emerald-500 uppercase tracking-widest mb-5 flex items-center gap-2">
+              <Database className="w-4 h-4" /> Context Active
             </p>
-            <div className="space-y-2">
-              {ctxItems.map(({ icon: Icon, label, active, detail }) => (
-                <div key={label} className={`flex items-center gap-2.5 p-2.5 rounded-lg ${active ? "bg-[#f5f5f7]" : "opacity-40"}`}>
-                  <Icon className={`w-4 h-4 shrink-0 ${active ? "text-[#34c759]" : "text-[#d2d2d7]"}`} strokeWidth={1.8} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-[#1d1d1f]">{label}</p>
-                    <p className="text-[10px] text-[#aeaeb2] truncate">{detail}</p>
-                  </div>
-                  {active && <Check className="w-3 h-3 text-[#34c759] shrink-0" />}
+            <div className="flex flex-wrap gap-2.5">
+              {ctxItems.filter(c => c.active).map(({ label, icon: Icon }) => (
+                <div key={label} className="px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 shadow-inner flex items-center gap-2">
+                   <Icon className="w-4 h-4 text-emerald-500" />
+                   <span className="text-[12px] text-zinc-300 font-bold tracking-wide">{label}</span>
                 </div>
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Consult a Doctor Action */}
-          <button 
-            onClick={() => router.push("/book")}
-            className="w-full bg-[#007aff] hover:bg-[#0062cc] text-white rounded-2xl p-4 flex items-center justify-between group transition-all"
-          >
+        {/* ─── MAIN CHAT AREA ─── */}
+        <div className="flex-1 flex flex-col bg-zinc-950 sm:bg-[#0c0c0e] sm:border border-zinc-800 rounded-3xl overflow-hidden shadow-2xl relative h-full">
+          
+          {/* Header */}
+          <div className="h-20 px-6 md:px-8 flex items-center justify-between border-b border-zinc-800/50 bg-[#0c0c0e]/80 backdrop-blur-xl z-20 shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-black border border-zinc-800 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.15)] relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/20 to-transparent"></div>
+                <Sparkles className="w-6 h-6 text-emerald-500 relative z-10" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[18px] font-extrabold text-white tracking-tight">z.ai Clinical Engine</span>
+                <span className="text-[11px] font-bold tracking-widest uppercase text-emerald-500/80 flex items-center gap-1.5"><div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div> Secure Session Active</span>
+              </div>
+            </div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-                <Stethoscope className="w-5 h-5 text-white" />
-              </div>
-              <div className="text-left">
-                <p className="text-[13px] font-bold">Consult a Doctor</p>
-                <p className="text-[10px] text-white/70">Professional medical advice</p>
-              </div>
-            </div>
-            <ArrowUpRight className="w-5 h-5 text-white/50 group-hover:text-white transition-colors" />
-          </button>
-
-          {/* Recent Records (Tagging UI) */}
-          {contextData.recordList?.length > 0 && (
-            <div className="bg-white rounded-2xl p-5">
-              <p className="text-[10px] font-semibold text-[#aeaeb2] uppercase tracking-widest mb-3">Tag Records</p>
-              <div className="space-y-2">
-                {contextData.recordList.map((rec) => (
-                  <button
-                    key={rec.id}
-                    onClick={() => setInput(prev => `${prev} @${rec.title} `.trimStart())}
-                    className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-[#f5f5f7] text-left transition-colors group"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-[#aeaeb2]" />
-                    <span className="flex-1 text-[11px] text-[#1d1d1f] truncate">{rec.title}</span>
-                    <Plus className="w-3 h-3 text-[#007aff] opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Recent assessment */}
-          {contextData.lastTriage && (
-            <div className="bg-white rounded-2xl p-5">
-              <p className="text-[10px] font-semibold text-[#aeaeb2] uppercase tracking-widest mb-2">Latest Assessment</p>
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-2 h-6 rounded-full ${
-                  contextData.lastTriage === "HIGH" || contextData.lastTriage === "CRITICAL" ? "bg-[#ff3b30]" :
-                  contextData.lastTriage === "MEDIUM" ? "bg-[#ff9500]" : "bg-[#34c759]"
-                }`} />
-                <span className={`text-[13px] font-bold ${
-                  contextData.lastTriage === "HIGH" || contextData.lastTriage === "CRITICAL" ? "text-[#ff3b30]" :
-                  contextData.lastTriage === "MEDIUM" ? "text-[#ff9500]" : "text-[#34c759]"
-                }`}>{contextData.lastTriage} Risk</span>
-              </div>
-              {contextData.recentSymptoms.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {contextData.recentSymptoms.map((s, i) => (
-                    <span key={i} className="px-2 py-0.5 rounded-md bg-[#f5f5f7] text-[10px] font-medium text-[#6e6e73] capitalize">
-                      {(typeof s === "string" ? s : "").replace(/_/g, " ")}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <p className="text-[10px] text-[#aeaeb2] mt-2">AI is aware of this assessment and {contextData.assessments - 1} more</p>
-            </div>
-          )}
-
-          {/* How it works */}
-          <div className="bg-white rounded-2xl p-5">
-            <p className="text-[10px] font-semibold text-[#aeaeb2] uppercase tracking-widest mb-2">How It Works</p>
-            <div className="space-y-2 text-[11px] text-[#6e6e73] leading-relaxed">
-              <p>Every message you send goes to <strong>MedGemma</strong> along with your full patient context.</p>
-              <p>The AI sees your records, assessments, vitals, and profile — so it gives personalized answers without you repeating info.</p>
-              <p>Chat history is preserved between sessions so you can continue conversations.</p>
+               <button onClick={clearChat} className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-rose-500/10 text-zinc-400 hover:text-rose-400 border border-zinc-800 hover:border-rose-500/30 transition-all font-bold text-[13px]">
+                 <Trash2 className="w-4 h-4" /> Reset Context
+               </button>
             </div>
           </div>
+
+          {/* Chat Messages */}
+          <div className="flex-1 overflow-y-auto px-4 md:px-8 py-8 md:py-12 space-y-10 scroll-smooth hide-scrollbar bg-[url('/noise.svg')] bg-zinc-950/20 bg-blend-overlay">
+            
+            {messages.length === 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+                className="flex flex-col items-center justify-center h-full text-center max-w-2xl mx-auto py-10"
+              >
+                <div className="w-24 h-24 rounded-[32px] bg-black border border-emerald-500/30 flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(16,185,129,0.15)] relative">
+                  <div className="absolute inset-0 bg-emerald-500/10 rounded-[32px] blur-xl"></div>
+                  <Sparkles className="w-12 h-12 text-emerald-400 z-10" />
+                </div>
+                <h2 className="text-[32px] md:text-[40px] font-black text-white mb-4 tracking-tighter leading-none">Arogya Intelligence</h2>
+                <p className="text-[15px] md:text-[17px] text-zinc-400 mb-12 leading-relaxed font-medium max-w-[500px]">
+                  Powered by a unified knowledge graph. Securely analyzing your clinical baseline, vital signatures, and historical records.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full px-4">
+                  {[
+                    { text: "Analyze my recent Complete Blood Count (CBC) report.", icon: FileText },
+                    { text: "I've been feeling unusually fatigued and dizzy lately.", icon: Activity },
+                    { text: "What preventive cardiology changes do you recommend?", icon: User },
+                    { text: "How is the local AQI affecting my respiratory baseline?", icon: Wind },
+                  ].map((q, idx) => (
+                    <motion.button 
+                      key={idx}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 + (idx * 0.1) }}
+                      onClick={() => sendMessage(q.text)}
+                      className="p-5 rounded-2xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-800 hover:border-emerald-500/30 text-left transition-all group shadow-sm flex items-start gap-4 active:scale-[0.98]"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700 group-hover:bg-emerald-500/10 group-hover:border-emerald-500/20 flex items-center justify-center shrink-0 transition-colors">
+                         <q.icon className="w-5 h-5 text-zinc-400 group-hover:text-emerald-500 transition-colors" />
+                      </div>
+                      <span className="text-[14px] text-zinc-300 group-hover:text-white leading-relaxed font-bold block pt-1">{q.text}</span>
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Render Messages */}
+            {messages.map((m, i) => (
+              <motion.div 
+                key={i} 
+                initial="hidden"
+                animate="visible"
+                variants={messageVariants}
+                className={`flex gap-4 md:gap-6 w-full max-w-[900px] mx-auto ${m.role === "user" ? "flex-row-reverse" : "flex-row"}`}
+              >
+                {/* Avatar */}
+                <div className="shrink-0 mt-2">
+                  {m.role === "user" ? (
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center shadow-md">
+                      <User className="w-5 h-5 text-zinc-300" />
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-black border border-emerald-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <Sparkles className="w-5 h-5 text-emerald-500" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Message Bubble */}
+                <div className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"} max-w-[85%] md:max-w-[80%]`}>
+                  <div className={`px-6 md:px-8 py-5 md:py-6 rounded-[28px] shadow-sm relative overflow-hidden ${
+                    m.role === "user"
+                      ? "bg-zinc-800 text-zinc-100 border border-zinc-700 rounded-tr-sm"
+                      : "bg-[#111113] text-zinc-200 border border-zinc-800/80 rounded-tl-sm prose prose-invert prose-emerald prose-p:text-[15px] md:prose-p:text-[16px] prose-p:leading-relaxed tracking-wide shadow-2xl"
+                  }`}>
+                     {m.role !== "user" && <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none"></div>}
+                    
+                    {m.role === "user" ? (
+                      <p className="text-[15px] md:text-[16px] font-medium whitespace-pre-wrap leading-relaxed relative z-10">{m.content}</p>
+                    ) : (
+                      <div className="relative z-10">
+                        <ReactMarkdown 
+                          components={{
+                            h1: ({node, ...props}) => <h1 className="text-xl md:text-2xl font-black mb-5 mt-8 text-white tracking-tight" {...props}/>,
+                            h2: ({node, ...props}) => <h2 className="text-lg md:text-xl font-bold mb-4 mt-6 text-white tracking-tight" {...props}/>,
+                            h3: ({node, ...props}) => <h3 className="text-base md:text-lg font-bold mb-3 mt-5 text-emerald-400" {...props}/>,
+                            p: ({node, ...props}) => <p className="mb-5 last:mb-0 text-[15px] md:text-[16px] font-medium text-zinc-300 leading-relaxed" {...props}/>,
+                            ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-5 space-y-2.5 text-zinc-300" {...props}/>,
+                            ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-5 space-y-2.5 text-zinc-300" {...props}/>,
+                            li: ({node, ...props}) => <li className="text-[15px] md:text-[16px] font-medium" {...props}/>,
+                            strong: ({node, ...props}) => <strong className="font-bold text-white bg-zinc-800/50 px-1 py-0.5 rounded" {...props}/>,
+                            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-emerald-500/50 pl-4 py-1 italic text-zinc-400 bg-emerald-500/5 rounded-r-xl" {...props}/>,
+                          }}
+                        >
+                          {m.content}
+                        </ReactMarkdown>
+
+                        {/* DOCTOR CTA ATTACHMENT */}
+                        {m.content.toLowerCase().includes("consult") || m.content.toLowerCase().includes("doctor") || m.content.toLowerCase().includes("medical attention") ? (
+                           <div className="mt-8 pt-6 border-t border-zinc-800/80">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 bg-zinc-950/80 rounded-2xl p-5 border border-zinc-800">
+                                <div className="flex items-start sm:items-center gap-4">
+                                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                                     <Stethoscope className="w-6 h-6 text-amber-500" />
+                                  </div>
+                                  <div>
+                                    <p className="text-[15px] font-bold text-white">Clinical Consultation Advised</p>
+                                    <p className="text-[13px] text-zinc-400 mt-0.5 font-medium">Proceed to specialist booking via z.ai network</p>
+                                  </div>
+                                </div>
+                                <button onClick={() => router.push("/doctor")} className="w-full sm:w-auto px-6 py-3 rounded-xl bg-white hover:bg-zinc-200 text-black text-[14px] font-bold transition-transform active:scale-95 flex items-center justify-center gap-2 shadow-xl shrink-0">
+                                  <Calendar className="w-4 h-4" /> Book Appointment
+                                </button>
+                              </div>
+                           </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+
+            {/* Smart Loading Animation */}
+            <AnimatePresence>
+              {loading && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="flex gap-4 md:gap-6 w-full max-w-[900px] mx-auto flex-row"
+                >
+                  <div className="shrink-0 mt-2">
+                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-2xl bg-black border border-emerald-500/30 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                      <Sparkles className="w-5 h-5 text-emerald-500" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-start gap-2 max-w-[85%]">
+                     <div className="flex items-center gap-4 px-6 py-5 bg-[#111113] border border-zinc-800 rounded-[28px] rounded-tl-sm shadow-sm relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent w-full h-full animate-[shimmer_2s_infinite] -translate-x-full pointer-events-none"></div>
+                        <Loader2 className="w-5 h-5 animate-spin text-emerald-500 shrink-0" />
+                        <motion.span 
+                           key={loadingStep}
+                           initial={{ opacity: 0, y: 5 }}
+                           animate={{ opacity: 1, y: 0 }}
+                           exit={{ opacity: 0, y: -5 }}
+                           className="text-[14px] font-mono font-bold text-zinc-400 whitespace-nowrap"
+                        >
+                           {LOADING_STEPS[loadingStep]}
+                        </motion.span>
+                     </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div ref={endRef} className="h-4" />
+          </div>
+
+          {/* Input Area */}
+          <div className="p-4 md:p-6 bg-[#0c0c0e] border-t border-zinc-800 shrink-0 relative z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+            
+            <div className="max-w-4xl mx-auto flex flex-col gap-3 relative">
+               
+               {/* Tagged Docs Row */}
+               {taggedDocs.length > 0 && (
+                 <div className="flex flex-wrap gap-2 px-1">
+                   {taggedDocs.map(doc => (
+                     <div key={doc} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-[12px] font-bold shadow-sm">
+                       <FileText className="w-3.5 h-3.5 text-zinc-400" />
+                       {doc}
+                       <button onClick={() => removeTag(doc)} className="ml-1.5 text-zinc-500 hover:text-rose-400 transition-colors bg-zinc-900 rounded-full p-0.5"><X className="w-3 h-3" /></button>
+                     </div>
+                   ))}
+                 </div>
+               )}
+
+               <div className="relative bg-zinc-900 rounded-[24px] border border-zinc-700 focus-within:border-emerald-500/50 focus-within:shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all shadow-xl flex flex-col group overflow-visible">
+                 
+                 {/* Floating Doc Menu */}
+                 <AnimatePresence>
+                    {showDocMenu && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                        className="absolute bottom-[100%] left-0 mb-4 w-72 bg-zinc-900 border border-zinc-800 rounded-3xl shadow-2xl overflow-hidden z-30"
+                      >
+                         <div className="p-4 border-b border-zinc-800/50 bg-zinc-950/50">
+                           <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2"><Paperclip className="w-3.5 h-3.5"/> Attach Secure Context</p>
+                         </div>
+                         <div className="p-2 space-y-1">
+                            {["Recent Blood Report (PDF)", "Echocardiogram (JPG)", "Dermatology Notes (PDF)"].map(doc => (
+                              <button key={doc} onClick={() => tagDocument(doc)} className="w-full text-left px-4 py-3 rounded-2xl text-[13px] font-bold text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-zinc-950 flex items-center justify-center border border-zinc-800 shrink-0"><FileText className="w-4 h-4 text-zinc-400" /></div> 
+                                <span className="truncate">{doc}</span>
+                              </button>
+                            ))}
+                         </div>
+                      </motion.div>
+                    )}
+                 </AnimatePresence>
+
+                 <div className="flex items-end min-h-[72px] px-2 py-2">
+                   
+                   {/* Document Box Toggle */}
+                   <div className="relative">
+                      <button 
+                        onClick={() => setShowDocMenu(!showDocMenu)}
+                        className={`w-14 h-14 shrink-0 rounded-[20px] flex items-center justify-center transition-colors mb-0.5 ${showDocMenu ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'}`}
+                      >
+                        <Plus className="w-6 h-6" />
+                      </button>
+                   </div>
+                   
+                   <textarea 
+                     ref={inputRef}
+                     value={input}
+                     onChange={e => setInput(e.target.value)}
+                     onKeyDown={e => {
+                       if (e.key === "Enter" && !e.shiftKey) {
+                         e.preventDefault();
+                         sendMessage();
+                       }
+                     }}
+                     placeholder="Ask z.ai anything or tag contexts..."
+                     className="flex-1 max-h-[200px] min-h-[56px] px-4 py-4 bg-transparent text-[16px] font-medium text-white placeholder:text-zinc-500 outline-none resize-none leading-relaxed"
+                     rows={1}
+                   />
+                   
+                   <button 
+                     onClick={() => sendMessage()} 
+                     disabled={loading || (!input.trim() && taggedDocs.length === 0)}
+                     className="w-14 h-14 shrink-0 rounded-[20px] bg-white flex items-center justify-center text-black transition-all hover:bg-zinc-200 active:scale-95 disabled:opacity-20 disabled:bg-zinc-800 disabled:text-zinc-500 mb-0.5 shadow-xl"
+                   >
+                     {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ArrowUpRight className="w-7 h-7" />}
+                   </button>
+                 </div>
+               </div>
+            </div>
+            
+            <p className="text-center text-[11px] text-zinc-600 mt-5 font-medium flex items-center justify-center gap-1.5"><ShieldAlert className="w-3.5 h-3.5"/> Arogya AI is an experimental semantic layer. Consult licensed physicians for diagnostics.</p>
+          </div>
         </div>
+
       </div>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes shimmer {
+          100% { transform: translateX(100%); }
+        }
+      `}}/>
     </AppShell>
   );
 }

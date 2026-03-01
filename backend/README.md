@@ -1,10 +1,10 @@
-# HealthIntel Backend — Architecture Guide
+# Arogya Backend — Architecture Guide
 
 > **Problem Statement**: Build a system that helps identify health risks before serious illness occurs. Intelligent diagnosis and symptom analysis system.
 
 ## System Architecture
 
-```
+```text
 ┌──────────────────────────────────────────────────────────────────────┐
 │                        Frontend (Next.js)                           │
 │   Auth → Onboarding → Dashboard → Assessment → Chat → Profile      │
@@ -14,25 +14,25 @@
 │                     FastAPI Backend                                  │
 │                                                                      │
 │  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────────┐ │
-│  │  Auth API   │  │ Assessment   │  │      Chat API (z.ai)        │ │
+│  │  Auth API   │  │ Assessment   │  │    Chat API (Arogya AI)     │ │
 │  │  /auth/*    │  │  /assess     │  │  /patients/{id}/chat        │ │
 │  └─────────────┘  └──────┬───────┘  └─────────────────────────────┘ │
 │                          │                                           │
 │          ┌───────────────┼───────────────┐                          │
 │          ▼               ▼               ▼                          │
 │  ┌──────────────┐ ┌─────────────┐ ┌────────────────┐               │
-│  │ Weight-Based │ │ ML-Based    │ │ z.ai LLM       │               │
-│  │ Engine       │ │ Risk Engine │ │ (Explanation)   │               │
-│  │              │ │             │ │                 │               │
-│  │ • Knowledge  │ │ • XGBoost   │ │ • Plain-lang    │               │
-│  │   Graph (18  │ │   classif.  │ │   explanation   │               │
-│  │   conditions)│ │ • SHAP      │ │ • Risk summary  │               │
-│  │ • Symptom    │ │   explain.  │ │ • Guidance      │               │
-│  │   Normalizer │ │ • 24 feat.  │ │ • Follow-up Qs  │               │
-│  │   (170+      │ │ • 3 disease │ │                 │               │
-│  │   aliases)   │ │   models    │ │                 │               │
-│  │ • Triage     │ │             │ │                 │               │
-│  │   Engine     │ │             │ │                 │               │
+│  │ Weight-Based │ │ ML-Based    │ │ Arogya AI      │               │
+│  │ Engine       │ │ Risk Engine │ │ (Explanation)  │               │
+│  │              │ │             │ │                │               │
+│  │ • Knowledge  │ │ • XGBoost   │ │ • Plain-lang   │               │
+│  │   Graph (18  │ │   classif.  │ │   explanation  │               │
+│  │   conditions)│ │ • SHAP      │ │ • Risk summary │               │
+│  │ • Symptom    │ │   explain.  │ │ • Guidance     │               │
+│  │   Normalizer │ │ • 24 feat.  │ │ • Follow-up Qs │               │
+│  │   (170+      │ │ • 3 disease │ │                │               │
+│  │   aliases)   │ │   models    │ │                │               │
+│  │ • Triage     │ │             │ │                │               │
+│  │   Engine     │ │             │ │                │               │
 │  └──────┬───────┘ └──────┬──────┘ └───────┬────────┘               │
 │         │                │                │                          │
 │         └────────────────┼────────────────┘                          │
@@ -46,7 +46,7 @@
 │                 │    - risk_scores (per disease)                     │
 │                 │    - vitals_summary                                │
 │                 │    - recommendations                               │
-│                 │  • explanation (z.ai)                              │
+│                 │  • explanation (Arogya AI)                         │
 │                 │  • aqi_level                                       │
 │                 └─────────────────┘                                  │
 │                                                                      │
@@ -75,7 +75,7 @@
 
 ### How They Work Together
 
-```
+```text
 User Input: "I have chest pain, shortness of breath"
                             │
             ┌───────────────┴───────────────┐
@@ -108,7 +108,7 @@ User Input: "I have chest pain, shortness of breath"
                     │ heart_disease: 62% (HIGH) │
                     │ top_factors: chest pain,  │
                     │   age, smoking            │
-                    │ + z.ai explanation        │
+                    │ + Arogya AI explanation   │
                     └───────────────────────────┘
 ```
 
@@ -121,14 +121,14 @@ User Input: "I have chest pain, shortness of breath"
 5. **AQI Integration** — Fetches air quality; unhealthy AQI + respiratory symptoms → elevates triage  
 6. **ML Risk Prediction** — XGBoost models predict diabetes/hypertension/heart disease probability  
 7. **Health Status** — Combines ML risk + vitals + triage into overall_risk (LOW/MODERATE/HIGH/CRITICAL)  
-8. **z.ai Explanation** — LLM generates plain-language explanation, risk summary, and preventive guidance  
+8. **Arogya AI Explanation** — LLM generates plain-language explanation, risk summary, and preventive guidance  
 9. **Persist** — Saves session to DB for history tracking  
 
 ---
 
 ## Project Structure
 
-```
+```text
 backend/
 ├── app/
 │   ├── api/                    # FastAPI route handlers
@@ -154,8 +154,8 @@ backend/
 │   │   ├── features.py         # 24 feature definitions + normal ranges
 │   │   └── predictor.py        # Runtime prediction + SHAP explanation
 │   │
-│   ├── ai/                     # LLM integration (z.ai only)
-│   │   ├── z_ai_client.py      # API client for z.ai
+│   ├── ai/                     # LLM integration (Arogya AI Layer)
+│   │   ├── ai_client.py        # Generic wrapper for intelligence
 │   │   └── explainability.py   # Prompt engineering for explanations
 │   │
 │   ├── db/                     # Database layer
@@ -183,7 +183,7 @@ backend/
 │       ├── heart_disease_model.pkl
 │       └── *_shap.pkl          # SHAP explainers
 │
-└── .env                        # Z_AI_KEY, AQI_API_KEY
+└── .env                        # AI_API_KEY, AQI_API_KEY
 ```
 
 ---
@@ -224,7 +224,7 @@ python scripts/train_risk_models.py    # ~15 seconds
 
 Simple username + password (SHA-256 hashed). No JWT tokens — stateless session via patient_id stored client-side.
 
-```
+```text
 POST /api/v1/auth/register  →  { username, password, name, age, sex, ... }
 POST /api/v1/auth/login     →  { username, password }
 Response: { patient_id, username, name, message }
@@ -259,7 +259,7 @@ Response: { patient_id, username, name, message }
 pip install fastapi uvicorn sqlalchemy pydantic apscheduler requests python-docx PyPDF2
 
 # 2. Set up environment
-echo Z_AI_KEY=your_key > .env
+echo AI_API_KEY=your_key > .env
 echo AQI_API_KEY=your_key >> .env
 
 # 3. Train ML models (optional, system works without them)
