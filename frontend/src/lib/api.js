@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 const API = `${BASE_URL}/api/v1`;
 
 // ── Generic helpers ──────────────────────────────────────────────────────────
@@ -30,10 +30,10 @@ async function request(method, url, data, isFormData = false) {
   return res.json();
 }
 
-const get  = (url)           => request("GET",    url);
-const post = (url, data)     => request("POST",   url, data);
-const put  = (url, data)     => request("PUT",    url, data);
-const del  = (url)           => request("DELETE", url);
+const get = (url) => request("GET", url);
+const post = (url, data) => request("POST", url, data);
+const put = (url, data) => request("PUT", url, data);
+const del = (url) => request("DELETE", url);
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
