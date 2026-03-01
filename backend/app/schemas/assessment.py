@@ -3,9 +3,10 @@ from typing import Any, Optional
 
 
 class AssessmentRequest(BaseModel):
-    user_id: int
+    patient_id: int
     symptoms: list[str] = []
     free_text: str = ""        # Free-text symptom input (e.g. "I have headache and chest pain")
+
 
 
 class RiskFactor(BaseModel):

@@ -112,12 +112,12 @@ def assess(payload: AssessmentRequest, db: Session = Depends(get_db)):
     11. Return structured JSON with triage, conditions, AQI, ML risk, explanation
     """
     # ── 1. Fetch patient ──────────────────────────────────────────────────────
-    patient = db.query(Patient).filter(Patient.id == payload.user_id).first()
+    patient = db.query(Patient).filter(Patient.id == payload.patient_id).first()
     if not patient:
         raise HTTPException(
             status_code=404,
             detail=(
-                f"Patient {payload.user_id} not found. "
+                f"Patient {payload.patient_id} not found. "
                 "Create the patient first via POST /api/v1/patients"
             ),
         )
@@ -193,7 +193,7 @@ def assess(payload: AssessmentRequest, db: Session = Depends(get_db)):
     # ── 7. Latest health snapshot ─────────────────────────────────────────────
     latest_snap = (
         db.query(HealthSnapshot)
-        .filter(HealthSnapshot.patient_id == payload.user_id)
+        .filter(HealthSnapshot.patient_id == payload.patient_id)
         .order_by(HealthSnapshot.recorded_at.desc())
         .first()
     )
@@ -229,7 +229,7 @@ def assess(payload: AssessmentRequest, db: Session = Depends(get_db)):
 
     # ── 10. Persist session ───────────────────────────────────────────────────
     session = SymptomSession(
-        patient_id=payload.user_id,
+        patient_id=payload.patient_id,
         symptoms=json.dumps(normalized),
         triage=triage_level,
     )
