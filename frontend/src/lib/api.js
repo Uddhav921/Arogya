@@ -100,8 +100,10 @@ function getSessions(patientId) {
  * @param {string}   freeText  - Optional free-text description
  */
 function assess(patientId, symptoms, freeText) {
+  // Send both user_id and patient_id for compatibility with all backend versions
   return post(`${API}/assess`, {
-    patient_id: patientId,
+    user_id: patientId,      // deployed backend expects user_id
+    patient_id: patientId,   // new backend schema uses patient_id
     symptoms,
     free_text: freeText || "",
   });
