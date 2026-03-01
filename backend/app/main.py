@@ -97,7 +97,7 @@ app.include_router(admin_router, prefix=API_PREFIX)
 def root():
     return {
         "status": "ok",
-        "service": "health-intel-backend",
+        "service": "arogya-backend",
         "version": "2.0.0",
         "docs": "/docs",
         "endpoints": {

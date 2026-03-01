@@ -129,7 +129,7 @@ User Input: "I have chest pain, shortness of breath"
 ## Project Structure
 
 ```
-health-intel-backend/
+backend/
 ├── app/
 │   ├── api/                    # FastAPI route handlers
 │   │   ├── auth.py             # POST /auth/register, /auth/login

@@ -17,7 +17,7 @@ This produces REALISTIC AUC scores (0.78-0.88), not perfect 1.0.
 Saves to data/models/{disease}_model.pkl and {disease}_shap.pkl
 
 Usage:
-    cd health-intel-backend
+    cd backend
     pip install xgboost shap scikit-learn
     python scripts/train_risk_models.py
 
