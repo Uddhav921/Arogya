@@ -16,6 +16,10 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Receive backend URL as a build-time argument so Next.js bakes it in
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
 RUN npm run build
 
 # ── 3. Production runtime ───────────────────────────────────────
