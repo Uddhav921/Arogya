@@ -59,6 +59,13 @@ build/
 .parcel-cache
 .turbo
 
+# Local Project Ignored Files
+.agent/
+.agents/
+skills-lock.json
+baseline.md
+backend/app/prompts/
+
 # Other
 .env.local
 .env.development.local
