@@ -12,8 +12,13 @@ class Patient(Base):
     __tablename__ = "patients"
 
     id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    password_hash = Column(String(128), nullable=False)
+    name = Column(String(100), nullable=False, default="Patient")
     age = Column(Integer, nullable=False)
     sex = Column(String(10), nullable=False)
+    weight_kg = Column(Float, nullable=True)      # kilograms
+    height_cm = Column(Float, nullable=True)      # centimeters
     known_conditions = Column(Text, default="[]")  # JSON list string
 
     records = relationship("MedicalRecord", back_populates="patient", cascade="all, delete-orphan")
@@ -24,6 +29,12 @@ class Patient(Base):
     @property
     def conditions_list(self) -> list[str]:
         return json.loads(self.known_conditions or "[]")
+
+    @property
+    def bmi(self) -> float | None:
+        if self.weight_kg and self.height_cm and self.height_cm > 0:
+            return round(self.weight_kg / ((self.height_cm / 100) ** 2), 1)
+        return None
 
 
 class MedicalRecord(Base):

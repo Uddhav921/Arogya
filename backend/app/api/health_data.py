@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.db.database import get_db
 from app.db.models import Patient, HealthSnapshot
@@ -17,6 +18,7 @@ def get_health_data(
     """
     Return the most recent health snapshots for a patient.
     Default is last 24 entries (= 24 hours at 1/hour simulation rate).
+    Returns empty list if no data yet (no 404).
     """
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
@@ -30,19 +32,12 @@ def get_health_data(
         .all()
     )
 
-    if not snapshots:
-        raise HTTPException(
-            status_code=404,
-            detail="No health data yet. The hourly simulator will generate data automatically, "
-                   "or trigger a manual run via POST /admin/simulate."
-        )
-
-    return snapshots
+    return snapshots  # empty list is fine
 
 
-@router.get("/{patient_id}/health-data/latest", response_model=HealthSnapshotOut)
+@router.get("/{patient_id}/health-data/latest", response_model=Optional[HealthSnapshotOut])
 def get_latest_snapshot(patient_id: int, db: Session = Depends(get_db)):
-    """Return the single most recent health snapshot for a patient."""
+    """Return the single most recent health snapshot for a patient. Returns null if no data."""
     patient = db.query(Patient).filter(Patient.id == patient_id).first()
     if not patient:
         raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
@@ -55,9 +50,6 @@ def get_latest_snapshot(patient_id: int, db: Session = Depends(get_db)):
     )
 
     if not snapshot:
-        raise HTTPException(
-            status_code=404,
-            detail="No health data yet. Simulator runs hourly or use POST /admin/simulate."
-        )
+        return None  # graceful null — no 404
 
     return snapshot

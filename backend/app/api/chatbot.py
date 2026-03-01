@@ -61,9 +61,8 @@ def chat(
         ensure_ascii=False,
     )
 
-    # ── Cap the total system prompt ───────────────────────────────────────────
-    # glm-4.7-flash has limited context — keep system content under 3800 chars
-    MAX_CONTEXT_CHARS = 3800
+    # Increase context capacity — keep system content under 16000 chars
+    MAX_CONTEXT_CHARS = 16000
     system_header = (
         _CHATBOT_SYSTEM_PROMPT
         + "\n\n---PATIENT CONTEXT---\n"
@@ -168,7 +167,7 @@ def _build_chat_context(patient, db: Session) -> dict:
         {
             "type":    r.record_type,
             "title":   r.title,
-            "summary": (r.summary[:120] + "…") if r.summary and len(r.summary) > 120 else r.summary,
+            "summary": (r.summary[:4000] + "…") if r.summary and len(r.summary) > 4000 else r.summary,
         }
         for r in recent_records
     ]

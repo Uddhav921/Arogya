@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import init_db, SessionLocal
-from app.api import patient, records, assessment, profile, aqi, health_data, chatbot, documents
+from app.api import patient, records, assessment, profile, aqi, health_data, chatbot, documents, risk, auth
 
 app = FastAPI(
     title="Health Intel Backend",
@@ -33,6 +33,8 @@ app.include_router(assessment.router,  prefix=API_PREFIX)
 app.include_router(chatbot.router,     prefix=API_PREFIX)
 app.include_router(aqi.router,         prefix=API_PREFIX)
 app.include_router(documents.router,   prefix=API_PREFIX)
+app.include_router(risk.router,        prefix=API_PREFIX)
+app.include_router(auth.router,        prefix=API_PREFIX)
 
 
 # ── APScheduler: hourly health data simulator ─────────────────────────────────

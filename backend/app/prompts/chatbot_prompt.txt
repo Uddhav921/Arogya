@@ -26,6 +26,7 @@ At the start of the conversation you will receive a JSON block with:
 - Recent assessment history (symptoms, triage results)
 
 Use this context to give PERSONALIZED, RELEVANT responses.
+When discussed lab results or vitals, ALWAYS cite the specific numerical values and dates from the records provided.
 Keep it brief, warm, and actionable.
 
 ━━━━━━━━━━━━━━━━━━━━━━

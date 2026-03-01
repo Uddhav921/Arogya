@@ -1,109 +1,274 @@
-# Health Intel Backend
+# HealthIntel Backend — Architecture Guide
 
-A **deterministic** health intelligence backend built with FastAPI, SQLite, and z.ai.
+> **Problem Statement**: Build a system that helps identify health risks before serious illness occurs. Intelligent diagnosis and symptom analysis system.
 
-> **Key principle:** All medical reasoning (inference + triage) is precomputed, rule-based, and deterministic. The LLM (z.ai) is used **only** to explain the output in plain language.
+## System Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                        Frontend (Next.js)                           │
+│   Auth → Onboarding → Dashboard → Assessment → Chat → Profile      │
+└─────────────────────────────┬────────────────────────────────────────┘
+                              │ REST API
+┌─────────────────────────────▼────────────────────────────────────────┐
+│                     FastAPI Backend                                  │
+│                                                                      │
+│  ┌─────────────┐  ┌──────────────┐  ┌─────────────────────────────┐ │
+│  │  Auth API   │  │ Assessment   │  │      Chat API (z.ai)        │ │
+│  │  /auth/*    │  │  /assess     │  │  /patients/{id}/chat        │ │
+│  └─────────────┘  └──────┬───────┘  └─────────────────────────────┘ │
+│                          │                                           │
+│          ┌───────────────┼───────────────┐                          │
+│          ▼               ▼               ▼                          │
+│  ┌──────────────┐ ┌─────────────┐ ┌────────────────┐               │
+│  │ Weight-Based │ │ ML-Based    │ │ z.ai LLM       │               │
+│  │ Engine       │ │ Risk Engine │ │ (Explanation)   │               │
+│  │              │ │             │ │                 │               │
+│  │ • Knowledge  │ │ • XGBoost   │ │ • Plain-lang    │               │
+│  │   Graph (18  │ │   classif.  │ │   explanation   │               │
+│  │   conditions)│ │ • SHAP      │ │ • Risk summary  │               │
+│  │ • Symptom    │ │   explain.  │ │ • Guidance      │               │
+│  │   Normalizer │ │ • 24 feat.  │ │ • Follow-up Qs  │               │
+│  │   (170+      │ │ • 3 disease │ │                 │               │
+│  │   aliases)   │ │   models    │ │                 │               │
+│  │ • Triage     │ │             │ │                 │               │
+│  │   Engine     │ │             │ │                 │               │
+│  └──────┬───────┘ └──────┬──────┘ └───────┬────────┘               │
+│         │                │                │                          │
+│         └────────────────┼────────────────┘                          │
+│                          ▼                                           │
+│                 ┌─────────────────┐                                  │
+│                 │  AssessmentResponse                                │
+│                 │  • triage: HIGH/MED/LOW                            │
+│                 │  • top_conditions: [...]                           │
+│                 │  • health_status:                                  │
+│                 │    - overall_risk                                  │
+│                 │    - risk_scores (per disease)                     │
+│                 │    - vitals_summary                                │
+│                 │    - recommendations                               │
+│                 │  • explanation (z.ai)                              │
+│                 │  • aqi_level                                       │
+│                 └─────────────────┘                                  │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────────┐ │
+│  │  Data Layer: SQLite + SQLAlchemy                                │ │
+│  │  Patient │ Profile │ Sessions │ Records │ HealthSnapshots       │ │
+│  └─────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Tech Stack
+## Dual-Engine Approach: Weight-Based + ML-Based
 
-| Layer | Technology |
-|---|---|
-| Language | Python 3.11 |
-| Framework | FastAPI |
-| AI SDK | z.ai (ZhipuAI) |
-| Database | SQLite |
-| ORM | SQLAlchemy |
-| Validation | Pydantic |
+### Why Two Engines?
+
+| Aspect | Weight-Based (Rule Engine) | ML-Based (XGBoost) |
+|--------|---------------------------|---------------------|
+| **Purpose** | Symptom → Condition matching | Chronic disease risk prediction |
+| **Input** | Normalized symptoms only | 24 clinical features (demographics + vitals + symptoms + lifestyle) |
+| **Output** | Ranked conditions + triage level | Risk probability (0-1) per disease + SHAP explanations |
+| **Speed** | Instant (<1ms) | Instant (<5ms) |
+| **Diseases** | 18 acute/common conditions | 3 chronic diseases (diabetes, hypertension, heart disease) |
+| **Explainability** | Rule weights are transparent | SHAP values show top contributing factors |
+| **When it shines** | "I have a headache and fever" → Flu, Migraine | "Given my age, BMI, family history, vitals → 34% diabetes risk" |
+
+### How They Work Together
+
+```
+User Input: "I have chest pain, shortness of breath"
+                            │
+            ┌───────────────┴───────────────┐
+            ▼                               ▼
+    Weight-Based Engine              ML Risk Engine
+    ┌──────────────────┐        ┌──────────────────────┐
+    │ 1. Normalize:    │        │ 1. Extract features: │
+    │    chest_pain,   │        │    age=45, bmi=28,   │
+    │    breathlessness│        │    has_chest_pain=1,  │
+    │                  │        │    has_breathless=1,  │
+    │ 2. Match against │        │    heart_rate=88, ... │
+    │    18 conditions │        │                      │
+    │    with weights  │        │ 2. XGBoost predict:  │
+    │                  │        │    P(heart) = 0.62   │
+    │ 3. Result:       │        │    P(hypert) = 0.41  │
+    │    Heart Disease │        │    P(diabetes) = 0.12│
+    │    (score: 4.2)  │        │                      │
+    │    Anxiety (2.8) │        │ 3. SHAP explains:    │
+    │                  │        │    chest_pain ↑ 0.31 │
+    │ 4. Triage: HIGH  │        │    age ↑ 0.18        │
+    └──────────────────┘        └──────────────────────┘
+            │                               │
+            └───────────────┬───────────────┘
+                            ▼
+                    Combined Response:
+                    ┌───────────────────────────┐
+                    │ triage: HIGH              │
+                    │ conditions: Heart Disease │
+                    │ overall_risk: CRITICAL    │
+                    │ heart_disease: 62% (HIGH) │
+                    │ top_factors: chest pain,  │
+                    │   age, smoking            │
+                    │ + z.ai explanation        │
+                    └───────────────────────────┘
+```
+
+### Assessment Pipeline (Step by Step)
+
+1. **Symptom Input** — User selects symptoms OR types free-text  
+2. **Normalization** — Exact alias match → fuzzy match → free-text parse (strips fillers, splits on commas)  
+3. **Weight-Based Inference** — Matches against 18-condition knowledge graph with weighted scoring  
+4. **Triage** — Deterministic LOW/MEDIUM/HIGH based on symptoms + medical history + family history  
+5. **AQI Integration** — Fetches air quality; unhealthy AQI + respiratory symptoms → elevates triage  
+6. **ML Risk Prediction** — XGBoost models predict diabetes/hypertension/heart disease probability  
+7. **Health Status** — Combines ML risk + vitals + triage into overall_risk (LOW/MODERATE/HIGH/CRITICAL)  
+8. **z.ai Explanation** — LLM generates plain-language explanation, risk summary, and preventive guidance  
+9. **Persist** — Saves session to DB for history tracking  
 
 ---
 
-## Setup
+## Project Structure
 
-### 1. Clone & install dependencies
-
-```bash
-cd health-intel-backend
-pip install -r requirements.txt
+```
+health-intel-backend/
+├── app/
+│   ├── api/                    # FastAPI route handlers
+│   │   ├── auth.py             # POST /auth/register, /auth/login
+│   │   ├── patient.py          # CRUD patients, GET /sessions
+│   │   ├── assessment.py       # POST /assess (main pipeline)
+│   │   ├── chatbot.py          # POST /patients/{id}/chat
+│   │   ├── risk.py             # POST /risk (standalone ML prediction)
+│   │   ├── profile.py          # CRUD patient profiles
+│   │   ├── records.py          # Medical records
+│   │   ├── health_data.py      # Wearable health snapshots
+│   │   ├── aqi.py              # Air quality index
+│   │   └── documents.py        # Document upload/parsing
+│   │
+│   ├── logic/                  # Deterministic reasoning (no ML)
+│   │   ├── knowledge_graph.py  # 18 conditions × weighted symptoms
+│   │   ├── symptom_normalizer.py # 170+ aliases + fuzzy matching
+│   │   ├── inference_engine.py # Weighted scoring algorithm
+│   │   ├── triage_engine.py    # Deterministic triage rules
+│   │   └── context_builder.py  # Longitudinal context assembly
+│   │
+│   ├── ml/                     # Machine learning module
+│   │   ├── features.py         # 24 feature definitions + normal ranges
+│   │   └── predictor.py        # Runtime prediction + SHAP explanation
+│   │
+│   ├── ai/                     # LLM integration (z.ai only)
+│   │   ├── z_ai_client.py      # API client for z.ai
+│   │   └── explainability.py   # Prompt engineering for explanations
+│   │
+│   ├── db/                     # Database layer
+│   │   ├── database.py         # SQLite + SQLAlchemy setup
+│   │   └── models.py           # Patient, Profile, Session, Record, Snapshot
+│   │
+│   ├── schemas/                # Pydantic request/response models
+│   │   ├── auth.py             # RegisterRequest, LoginRequest
+│   │   ├── patient.py          # PatientCreate, PatientOut
+│   │   └── assessment.py       # AssessmentRequest/Response, HealthStatus
+│   │
+│   ├── services/               # External integrations
+│   │   ├── aqi_service.py      # OpenWeather AQI API
+│   │   └── health_simulator.py # Hourly wearable data generation
+│   │
+│   └── main.py                 # FastAPI app, CORS, router registration
+│
+├── scripts/
+│   └── train_risk_models.py    # Train XGBoost models (~15s)
+│
+├── data/
+│   └── models/                 # Trained model artifacts
+│       ├── diabetes_model.pkl
+│       ├── hypertension_model.pkl
+│       ├── heart_disease_model.pkl
+│       └── *_shap.pkl          # SHAP explainers
+│
+└── .env                        # Z_AI_KEY, AQI_API_KEY
 ```
 
-### 2. Configure API key
+---
+
+## ML Models
+
+### Features (24 total)
+
+| # | Feature | Source |
+|---|---------|--------|
+| 1-3 | Age, Gender, BMI | Patient record |
+| 4-9 | Smoking, Alcohol, Family Hx (3), Activity Level | Patient profile |
+| 10-16 | Heart Rate, Systolic BP, Diastolic BP, SpO2, Glucose, Temp, Sleep | Wearable data |
+| 17-24 | Symptom Count, Max Severity, Has Chest Pain/Breathlessness/Fever/Headache/Fatigue/Freq. Urination | Current symptoms |
+
+### Training Data
+
+Synthetic dataset (6000 patients) with **realistic noise**:
+- **6% missing values** in continuous features (simulates incomplete records)
+- **4-5% label noise** (simulates misdiagnosis/ambiguity)
+- **Measurement outliers** (~2%, simulates device errors)
+- **Bimodal glucose** distribution (normal + pre-diabetic clusters)
+- **Correlated risk factors** (smokers more likely to drink)
+- **Weaker signal-to-noise** ratios than textbook examples
+
+**Expected AUC: 0.78–0.88** (realistic, not 1.0)
+
+### Training
 
 ```bash
-cp .env.example .env
-# Edit .env and add your ZAI_API_KEY
+pip install xgboost shap scikit-learn
+python scripts/train_risk_models.py    # ~15 seconds
 ```
 
-### 3. Run the server
+---
 
-```bash
-uvicorn app.main:app --reload --port 8000
+## Authentication
+
+Simple username + password (SHA-256 hashed). No JWT tokens — stateless session via patient_id stored client-side.
+
 ```
-
-### 4. Open Swagger UI
-
-Visit [http://localhost:8000/docs](http://localhost:8000/docs)
+POST /api/v1/auth/register  →  { username, password, name, age, sex, ... }
+POST /api/v1/auth/login     →  { username, password }
+Response: { patient_id, username, name, message }
+```
 
 ---
 
 ## API Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| POST | `/api/v1/patients` | Create a new patient |
-| GET | `/api/v1/patients/{id}` | Get patient by ID |
-| POST | `/api/v1/patients/{id}/records` | Add a medical record |
-| GET | `/api/v1/patients/{id}/records` | List records for a patient |
-| POST | `/api/v1/assess` | **Main endpoint** — symptom assessment |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/auth/register` | Create account |
+| POST | `/auth/login` | Login |
+| POST | `/patients` | Create patient (legacy) |
+| GET | `/patients/{id}` | Get patient details |
+| GET | `/patients/{id}/sessions` | Assessment history |
+| POST | `/assess` | Full assessment (symptoms + ML risk + health status) |
+| POST | `/risk` | Standalone ML risk prediction |
+| GET | `/risk/status` | Check if ML models are loaded |
+| POST | `/patients/{id}/chat` | AI health chatbot |
+| GET/POST | `/patients/{id}/profile` | Patient profile (lifestyle) |
+| GET/POST | `/patients/{id}/records` | Medical records CRUD |
+| GET | `/patients/{id}/health-data/latest` | Latest wearable vitals |
+| GET | `/aqi?location=...` | Air quality index |
 
 ---
 
-## End-to-End Flow
-
-```
-user_id + symptoms
-       ↓
-Fetch patient + records (SQLite)
-       ↓
-Build longitudinal context
-       ↓
-Normalize symptoms
-       ↓
-Weighted inference (knowledge graph)
-       ↓
-Triage logic (HIGH / MEDIUM / LOW)
-       ↓
-z.ai called ONLY for explanation
-       ↓
-Return structured JSON
-```
-
----
-
-## Example: Assess Request
+## Running
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/assess \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": 1, "symptoms": ["fever", "breathlessness", "cough"]}'
+# 1. Install dependencies
+pip install fastapi uvicorn sqlalchemy pydantic apscheduler requests python-docx PyPDF2
+
+# 2. Set up environment
+echo Z_AI_KEY=your_key > .env
+echo AQI_API_KEY=your_key >> .env
+
+# 3. Train ML models (optional, system works without them)
+pip install xgboost shap scikit-learn
+python scripts/train_risk_models.py
+
+# 4. Start server
+uvicorn app.main:app --reload --port 8000
+
+# 5. API docs
+open http://localhost:8000/docs
 ```
-
-**Response:**
-```json
-{
-  "triage": "HIGH",
-  "top_conditions": ["pneumonia_risk", "viral_fever"],
-  "explanation": {
-    "explanation": "Based on the information available...",
-    "why_it_matters": "...",
-    "recommended_next_step": "Seek immediate medical attention.",
-    "follow_up_questions": [],
-    "safety_note": "This is not a medical diagnosis."
-  }
-}
-```
-
----
-
-> ⚠️ This system is a demonstration tool only. It is not a medical device and must not be used for clinical decision-making.
